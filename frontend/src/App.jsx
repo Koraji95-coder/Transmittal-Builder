@@ -62,7 +62,7 @@ const TF=({label,value,onChange,placeholder,mono,compact})=><div style={{flex:1,
     style={{width:"100%",padding:compact?"5px 10px":"7px 12px",background:T.bgIn,border:`1px solid ${T.bd}`,borderRadius:T.rS,color:T.t1,fontFamily:mono?T.fM:T.fB,fontSize:mono?"13px":"14px",outline:"none",transition:"border-color 0.15s"}}
     onFocus={e=>{e.target.style.borderColor=T.bdFoc}} onBlur={e=>{e.target.style.borderColor=T.bd}}/></div>;
 
-const CB=({label,checked,onChange})=><label style={{display:"flex",alignItems:"center",gap:"8px",cursor:"pointer",padding:"3px 0",fontSize:"13px",color:checked?T.t1:T.t2}}>
+const CB=({label,checked,onChange})=><label onClick={onChange} style={{display:"flex",alignItems:"center",gap:"8px",cursor:"pointer",padding:"3px 0",fontSize:"13px",color:checked?T.t1:T.t2}}>
   <span style={{width:"15px",height:"15px",borderRadius:"3px",border:`1.5px solid ${checked?T.acc:T.bd}`,background:checked?T.acc:"transparent",display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.15s",flexShrink:0}}>{checked&&<span style={{color:T.tOn}}>{I.check}</span>}</span>{label}</label>;
 
 const Card=({children,style})=><div style={{background:T.bgCard,border:`1px solid ${T.bd}`,borderRadius:T.rL,padding:"24px",...style}}>{children}</div>;
