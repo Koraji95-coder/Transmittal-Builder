@@ -583,8 +583,8 @@ export default function App(){
         const data=await res.json();
         const folderName=data.xmtl_folder_name||"XMTL folder";
         showToast(`✓ Saved to ${folderName} in project folder`,"success",8000);
-        // Update next XMTL num for next generation
-        const newNum=String(parseInt(data.xmtl_folder_name?.replace("XMTL-","")||"0")+1).padStart(3,"0");
+        // Use the next_xmtl_num returned by the backend (already accounts for the new folder)
+        const newNum=data.next_xmtl_num||"001";
         setNextXmtlNum(newNum);
         u("xmtlNum",newNum);
       }catch(e){

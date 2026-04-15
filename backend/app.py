@@ -366,7 +366,9 @@ async def api_render_to_folder(
         xmtl_num = fields_dict.get("transmittal_num", "").strip() or _get_next_xmtl_num(output_dir)
         # Pad to 3 digits if purely numeric
         xmtl_num_padded = xmtl_num.zfill(3) if xmtl_num.isdigit() else xmtl_num
-        base_name = f"R3P-{job_num}_XMTL-{xmtl_num_padded}"
+        # Avoid doubling any leading "R3P-" that the client already included
+        job_label = job_num if job_num.upper().startswith("R3P-") else f"R3P-{job_num}"
+        base_name = f"{job_label}_XMTL-{xmtl_num_padded}"
 
         # Create the XMTL output sub-folder
         xmtl_folder_name = f"XMTL-{xmtl_num_padded}"
@@ -430,6 +432,7 @@ async def api_render_to_folder(
             "success": True,
             "xmtl_folder": xmtl_folder,
             "xmtl_folder_name": xmtl_folder_name,
+            "next_xmtl_num": _get_next_xmtl_num(output_dir),
             "files_written": files_written,
         })
 
