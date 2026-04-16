@@ -76,10 +76,12 @@ input,select,textarea{font-family:inherit;font-size:inherit}
 let _id=0;const uid=()=>`_${++_id}_${Date.now()}`;
 
 // ─── Filename Parser (port of backend extract_doc_meta) ──────
+// Matches R3P-{jobnum}-E{dept}-{docnum} format, supporting Unicode dashes (–, —) from copy-paste
 const DOC_ID_RE=/(?:R3P[-–—](\d+)[-–—]E(\d+)[-–—](\d+))/i;
 function extractDocMeta(filename){
   const base=filename.replace(/\.[^.]+$/,"").replace(/^.*[/\\]/,"");
   const m=DOC_ID_RE.exec(base);
+  // Fallback: non-R3P filenames use the full base name as description
   if(!m)return{docNo:"",desc:base.trim(),rev:""};
   const raw=m[0].replace(/[–—]/g,"-").toUpperCase();
   const prunedDocNo=raw.replace(/^R3P-\d+-/,"");
@@ -683,11 +685,13 @@ export default function App(){
     if(!templateFile||(!hasUploadedPdfs&&!hasLocalPdfs))return;
     setGenerating(true);
 
-    // Filter documents to matched PDFs when toggle is off
+    // Filter documents to only those matching uploaded PDFs when toggle is off
     let docsToSend=documents;
     if(!includeAllIndex&&indexFile&&documents.length>0){
       const allPdfNames=[...pdfFiles.map(f=>f.name),...localPdfPaths.map(p=>p.replace(/\\/g,"/").split("/").pop())];
-      const pdfDocNos=new Set(allPdfNames.map(n=>{const m=extractDocMeta(n);return m.docNo.toUpperCase()}).filter(Boolean));
+      const pdfDocNos=new Set(
+        allPdfNames.map(n=>extractDocMeta(n).docNo.toUpperCase()).filter(Boolean)
+      );
       docsToSend=documents.filter(d=>pdfDocNos.has(d.docNo.toUpperCase()));
     }
 
