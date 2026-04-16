@@ -26,7 +26,7 @@ export default defineConfig({
   build: {
     // Tauri uses Chromium on Windows; target it explicitly for an
     // optimal, smaller output bundle.
-    target: "chrome105",
+    target: "chrome111",
     // Emit a source-map in debug builds so Tauri's devtools are useful.
     sourcemap: !!process.env.TAURI_ENV_DEBUG,
   },
