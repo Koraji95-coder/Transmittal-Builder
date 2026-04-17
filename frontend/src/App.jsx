@@ -75,6 +75,20 @@ input,select,textarea{font-family:inherit;font-size:inherit}
 
 let _id=0;const uid=()=>`_${++_id}_${Date.now()}`;
 
+// ─── Filename Parsing (mirrors backend core/render.py) ───────
+const DOC_ID_RE=/(?:R3P[-–—]\d+[-–—]E\d+[-–—]\d+)/i;
+function extractDocMeta(filename){
+  const base=filename.replace(/\.[^.]+$/,"").replace(/^.*[/\\]/,"");
+  const m=DOC_ID_RE.exec(base);
+  if(!m){return{doc_no:"",desc:base.trim(),rev:""};}
+  const rawDoc=m[0];
+  const docNo=rawDoc.replace(/[–—]/g,"-").toUpperCase().replace(/^R3P-\d+-/,"");
+  const remainder=base.slice(m.index+m[0].length).replace(/^[\s\-_–—:;|]+/,"");
+  return{doc_no:docNo,desc:remainder.trim(),rev:""};
+}
+/** Stable key for dedup / sync between PDF list and doc index rows. */
+const docKey=(docNo,desc)=>(docNo+"|"+desc).toLowerCase();
+
 // ─── Status screen (shared layout for checking / failed) ─────
 const statusScreenStyle={
   display:"flex",
@@ -411,7 +425,7 @@ function DocumentsSection({documents,updateDoc,removeDoc,addDoc,clearAll,templat
         <Btn variant="ghost" icon={I.plus} onClick={addDoc} style={{padding:"4px 10px",fontSize:"12px"}}>Add Row</Btn>
       </div>
     </div>
-    {documents.length===0?<div style={{padding:"24px",textAlign:"center",color:T.t3,fontSize:"13px",border:`1px solid ${T.bd}`,borderRadius:T.r,background:T.bgEl}}>Add documents manually with "Add Row" or drop an Excel drawing index above to auto-populate</div>:
+    {documents.length===0?<div style={{padding:"24px",textAlign:"center",color:T.t3,fontSize:"13px",border:`1px solid ${T.bd}`,borderRadius:T.r,background:T.bgEl}}>Drop PDFs above to auto-populate, use "Add Row" for manual entries, or drop an Excel drawing index for revision data</div>:
       <><div style={{display:"grid",gridTemplateColumns:"160px 1fr 70px 36px",gap:"8px",padding:"7px 12px",background:T.bgEl,borderRadius:`${T.rS} ${T.rS} 0 0`,borderBottom:`1px solid ${T.bd}`}}><span style={thS}>Doc No.</span><span style={thS}>Description</span><span style={thS}>Rev</span><span/></div>
       <div style={{border:`1px solid ${T.bd}`,borderTop:"none",borderRadius:`0 0 ${T.rS} ${T.rS}`,overflow:"hidden"}}>{documents.map((d,i)=><div key={d.id} style={{display:"grid",gridTemplateColumns:"160px 1fr 70px 36px",gap:"8px",padding:"5px 12px",alignItems:"center",borderBottom:i<documents.length-1?`1px solid ${T.bdSub}`:"none",background:i%2===0?"transparent":"rgba(255,255,255,0.008)"}}>
         <input value={d.docNo} onChange={e=>updateDoc(d.id,"docNo",e.target.value)} placeholder="E0-001" style={cMono}/>
@@ -515,7 +529,7 @@ function Sidebar({draft,checks,contacts,documents,pdfFiles,localPdfPaths,templat
           <Badge color="info">Transmittal DOCX</Badge>
           <Badge color="info">Transmittal PDF</Badge>
           {hasP&&<Badge color="info">Combined PDF</Badge>}
-          <Badge color="accent">contacts.json</Badge>
+          <Badge color="accent">Contacts</Badge>
         </div>
       </div>:<div style={{fontSize:"13px",color:T.t2,lineHeight:1.6}}>Includes:
         <div style={{display:"flex",flexDirection:"column",gap:"6px",marginTop:"8px"}}>
@@ -678,6 +692,7 @@ export default function App(){
 
   // ─── Smart file router ───────────────────────────────────
   const onFileDrop=useCallback(files=>{
+    const newPdfs=[];
     for(const f of files){
       const ext=f.name.split(".").pop().toLowerCase();
       if(ext==="docx"){
@@ -687,23 +702,67 @@ export default function App(){
         setIndexFile(f);
         parseIndex(f);
       }else if(ext==="pdf"){
-        if(documents.length===0&&!indexFile){
-          showToast("Load a drawing index first before adding source PDFs","warning",5000);
-          continue;
-        }
         setPdfFiles(prev=>{
           if(prev.some(p=>p.name===f.name))return prev;
           return[...prev,f];
         });
+        newPdfs.push(f);
       }
     }
-  },[parseIndex,documents,indexFile]);
+    // Auto-create document index rows for new PDFs
+    if(newPdfs.length>0){
+      setDocuments(prev=>{
+        const existing=new Set(prev.map(d=>docKey(d.docNo,d.desc)));
+        const toAdd=[];
+        for(const f of newPdfs){
+          const meta=extractDocMeta(f.name);
+          const key=docKey(meta.doc_no,meta.desc);
+          if(!existing.has(key)){
+            toAdd.push({id:uid(),docNo:meta.doc_no,desc:meta.desc,rev:meta.rev,_pdfName:f.name});
+            existing.add(key);
+          }
+        }
+        return[...prev,...toAdd];
+      });
+    }
+  },[parseIndex]);
 
   const clearTemplate=useCallback(()=>setTemplateFile(null),[]);
   const clearIndex=useCallback(()=>{setIndexFile(null);setDocuments([]);setIndexWarnings([])},[]);
-  const removePdf=useCallback(name=>setPdfFiles(p=>p.filter(f=>f.name!==name)),[]);
-  const toggleLocalPdf=useCallback(path=>setLocalPdfPaths(p=>p.includes(path)?p.filter(x=>x!==path):[...p,path]),[]);
-  const removeLocalPdf=useCallback(path=>setLocalPdfPaths(p=>p.filter(x=>x!==path)),[]);
+  const removePdf=useCallback(name=>{
+    setPdfFiles(p=>p.filter(f=>f.name!==name));
+    // Sync-remove matching document row
+    const meta=extractDocMeta(name);
+    const key=docKey(meta.doc_no,meta.desc);
+    setDocuments(p=>p.filter(d=>docKey(d.docNo,d.desc)!==key));
+  },[]);
+  const toggleLocalPdf=useCallback(path=>{
+    setLocalPdfPaths(prev=>{
+      const removing=prev.includes(path);
+      const next=removing?prev.filter(x=>x!==path):[...prev,path];
+      // Sync doc rows: add or remove based on toggle
+      const filename=path.replace(/\\/g,"/").split("/").pop();
+      const meta=extractDocMeta(filename);
+      const key=docKey(meta.doc_no,meta.desc);
+      if(removing){
+        setDocuments(p=>p.filter(d=>docKey(d.docNo,d.desc)!==key));
+      }else{
+        setDocuments(p=>{
+          if(p.some(d=>docKey(d.docNo,d.desc)===key))return p;
+          return[...p,{id:uid(),docNo:meta.doc_no,desc:meta.desc,rev:meta.rev,_pdfPath:path}];
+        });
+      }
+      return next;
+    });
+  },[]);
+  const removeLocalPdf=useCallback(path=>{
+    setLocalPdfPaths(p=>p.filter(x=>x!==path));
+    // Sync-remove matching document row
+    const filename=path.replace(/\\/g,"/").split("/").pop();
+    const meta=extractDocMeta(filename);
+    const key=docKey(meta.doc_no,meta.desc);
+    setDocuments(p=>p.filter(d=>docKey(d.docNo,d.desc)!==key));
+  },[]);
   const clearAllDocuments=useCallback(()=>{
     setDocuments([]);setPdfFiles([]);setLocalPdfPaths([]);setIndexFile(null);setIndexWarnings([]);
     showToast("All documents and PDFs cleared","info",3000);
