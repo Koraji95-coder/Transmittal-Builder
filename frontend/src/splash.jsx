@@ -112,19 +112,17 @@ function Splash() {
   const [titleVisible, setTitleVisible] = useState(false);
   const [taglineVisible, setTaglineVisible] = useState(false);
 
-  // Terminal lines: { prefix, prefixClass, msg, msgClass, fullyTyped }
-  const [lines, setLines]             = useState([]);
-  // Characters typed in the currently-typing line
-  const [typedChars, setTypedChars]   = useState(0);
+  // Terminal lines: { prefix, pClass, msg, mClass, done }
+  const [lines, setLines] = useState([]);
 
   // Queue of incoming status events from Rust
-  const statusQueueRef  = useRef([]);
+  const statusQueueRef = useRef([]);
   const isTypingRef     = useRef(false);
   const skippedRef      = useRef(false);
   const phaseRef        = useRef(PHASE.INIT);
   const sparkTimerRef   = useRef(null);
   const audioWeldRef    = useRef(null);
-  const audioClanckRef  = useRef(null);
+  const audioClankRef  = useRef(null);
   const tauriRef        = useRef(null);
 
   // Keep phaseRef in sync
@@ -147,7 +145,7 @@ function Splash() {
         /* @vite-ignore */ new URL("./assets/splash/clank.ogg", import.meta.url).href,
       );
       clank.volume = 0.7;
-      audioClanckRef.current = clank;
+      audioClankRef.current = clank;
     } catch { /* no sound */ }
   }, []);
 
@@ -157,43 +155,52 @@ function Splash() {
     getTauriApi().then((api) => {
       if (!api) return;
       tauriRef.current = api;
-      api.listen("splash://status", (ev) => {
-        const { message, kind } = ev.payload ?? {};
-        if (!message) return;
-        statusQueueRef.current.push({ message, kind: kind ?? "pending" });
-        drainQueue();
-      }).then((fn) => { unlisten = fn; });
+      api
+        .listen("splash://status", (ev) => {
+          const { message, kind } = ev.payload ?? {};
+          if (!message) return;
+          statusQueueRef.current.push({ message, kind: kind ?? "pending" });
+          drainQueue();
+        })
+        .then((fn) => {
+          unlisten = fn;
+        });
     });
-    return () => { if (unlisten) unlisten(); };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, [drainQueue]);
 
   // ── Typewriter engine ────────────────────────────────────────────────────
+  // Store typeLineIn in a ref so drainQueue can call it without creating a
+  // circular dependency in the useCallback dependency arrays.
+  const typeLineInRef = useRef(null);
+
   const drainQueue = useCallback(() => {
     if (isTypingRef.current) return;
     const next = statusQueueRef.current.shift();
     if (!next) return;
-    typeLineIn(next);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    typeLineInRef.current?.(next);
+  }, []); // reads only refs — stable for component lifetime
 
-  const typeLineIn = useCallback((item) => {
+  // Wire typeLineIn via the ref so both callbacks share access.
+  typeLineInRef.current = (item) => {
     isTypingRef.current = true;
     const prefix = prefixForKind(item.kind);
     const fullText = item.message;
-    const pClass   = prefixClass(item.kind);
-    const mClass   = msgClass(item.kind);
+    const pClass = prefixClass(item.kind);
+    const mClass = msgClass(item.kind);
 
-    // Add line skeleton
     setLines((prev) => [...prev, { prefix, pClass, msg: "", mClass, done: false }]);
-    setTypedChars(0);
 
     let charIdx = 0;
     const advance = () => {
       if (skippedRef.current) {
-        // Flush remaining chars instantly
+        // Flush remaining characters instantly on skip.
         setLines((prev) => {
-          const next = [...prev];
-          next[next.length - 1] = { ...next[next.length - 1], msg: fullText, done: true };
-          return next;
+          const arr = [...prev];
+          arr[arr.length - 1] = { ...arr[arr.length - 1], msg: fullText, done: true };
+          return arr;
         });
         isTypingRef.current = false;
         drainQueue();
@@ -201,15 +208,14 @@ function Splash() {
       }
 
       charIdx++;
-      setTypedChars(charIdx);
       setLines((prev) => {
-        const next = [...prev];
-        next[next.length - 1] = {
-          ...next[next.length - 1],
+        const arr = [...prev];
+        arr[arr.length - 1] = {
+          ...arr[arr.length - 1],
           msg: fullText.slice(0, charIdx),
           done: charIdx >= fullText.length,
         };
-        return next;
+        return arr;
       });
 
       if (charIdx < fullText.length) {
@@ -221,7 +227,7 @@ function Splash() {
     };
 
     setTimeout(advance, CHAR_MS);
-  }, [drainQueue]);
+  };
 
   // ── Skip handler ─────────────────────────────────────────────────────────
   const requestSkip = useCallback(() => {
@@ -235,7 +241,13 @@ function Splash() {
       const prefix = prefixForKind(item.kind);
       setLines((prev) => [
         ...prev,
-        { prefix, pClass: prefixClass(item.kind), msg: item.message, mClass: msgClass(item.kind), done: true },
+        {
+          prefix,
+          pClass: prefixClass(item.kind),
+          msg: item.message,
+          mClass: msgClass(item.kind),
+          done: true,
+        },
       ]);
     }
 
@@ -252,7 +264,7 @@ function Splash() {
 
     // Notify Rust to skip the minimum wait
     tauriRef.current?.invoke("request_skip_splash").catch(() => {});
-  }, []);
+  }, [stopWeldAudio]);
 
   // ── Keyboard skip ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -264,18 +276,28 @@ function Splash() {
   }, [requestSkip]);
 
   // ── Audio helpers ────────────────────────────────────────────────────────
-  const playWeldAudio = () => {
+  // These read only stable refs (audioWeldRef, audioClankRef), so useCallback
+  // with empty deps gives stable function references for the phase sequencer.
+  const playWeldAudio = useCallback(() => {
     if (!audioWeldRef.current) return;
-    try { audioWeldRef.current.currentTime = 0; audioWeldRef.current.play(); } catch { /* silence */ }
-  };
-  const stopWeldAudio = () => {
+    try {
+      audioWeldRef.current.currentTime = 0;
+      audioWeldRef.current.play();
+    } catch { /* silence */ }
+  }, []);
+
+  const stopWeldAudio = useCallback(() => {
     if (!audioWeldRef.current) return;
     try { audioWeldRef.current.pause(); } catch { /* silence */ }
-  };
-  const playClankAudio = () => {
-    if (!audioClanckRef.current) return;
-    try { audioClanckRef.current.currentTime = 0; audioClanckRef.current.play(); } catch { /* silence */ }
-  };
+  }, []);
+
+  const playClankAudio = useCallback(() => {
+    if (!audioClankRef.current) return;
+    try {
+      audioClankRef.current.currentTime = 0;
+      audioClankRef.current.play();
+    } catch { /* silence */ }
+  }, []);
 
   // ── Spark emitter ─────────────────────────────────────────────────────────
   // weldX/weldY in viewport coords — centre of the splash window
@@ -385,7 +407,7 @@ function Splash() {
       [t1, t2, t3, t4, t5, t6].forEach(clearTimeout);
       if (sparkTimerRef.current) clearInterval(sparkTimerRef.current);
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [startSparks, burstSparks, playWeldAudio, stopWeldAudio, playClankAudio]);
 
   // ── Render ────────────────────────────────────────────────────────────────
   // Build content class
