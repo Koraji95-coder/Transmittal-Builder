@@ -332,9 +332,9 @@ function Splash() {
         .listen("splash://status", (ev) => {
           const { message, kind, phase } = ev.payload ?? {};
           if (!message) return;
-          // Use the phase id from Rust; fall back to message text as a key so
-          // legacy events (without a phase field) still deduplicate correctly.
-          statusQueueRef.current.push({ phase: phase ?? message, message, kind: kind ?? "pending" });
+          // Use the phase id from Rust; null for events without a phase so that
+          // no unintended deduplication occurs (in-place update requires a non-null phase).
+          statusQueueRef.current.push({ phase: phase ?? null, message, kind: kind ?? "pending" });
           drainQueue();
         })
         .then((fn) => {
