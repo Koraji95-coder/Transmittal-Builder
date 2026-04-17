@@ -1,4 +1,4 @@
-/* splash.css — Forged splash screen styles & keyframe animations */
+/* splash.css — Forge-branded splash screen styles & keyframe animations */
 
 /* ── Reset ─────────────────────────────────────────────────────────────── */
 *, *::before, *::after {
@@ -7,11 +7,12 @@
   padding: 0;
 }
 
-/* ── Root container ─────────────────────────────────────────────────────── */
+/* ── Root container — warm forge gradient ──────────────────────────────── */
 .splash-root {
   width: 560px;
   height: 340px;
-  background: #0F1419;
+  /* Warm forge gradient: near-black mahogany top → absolute black bottom */
+  background: linear-gradient(180deg, #1a1210 0%, #0a0806 100%);
   overflow: hidden;
   position: relative;
   font-family: 'Inter', system-ui, sans-serif;
@@ -19,20 +20,20 @@
   cursor: default;
 }
 
-/* ── Blueprint grid ─────────────────────────────────────────────────────── */
-.blueprint-grid {
+/* Very faint diagonal hatching — old-technical-drawing feel (~3% opacity) */
+.splash-root::before {
+  content: '';
   position: absolute;
   inset: 0;
-  background-image:
-    linear-gradient(rgba(0, 200, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 200, 255, 0.04) 1px, transparent 1px);
-  background-size: 30px 30px;
-  animation: grid-drift 5.6s linear infinite;
-  opacity: 0;
-  transition: opacity 0.8s ease;
-}
-.blueprint-grid.visible {
-  opacity: 1;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(200, 130, 58, 0.03) 0px,
+    rgba(200, 130, 58, 0.03) 1px,
+    transparent 1px,
+    transparent 8px
+  );
+  pointer-events: none;
+  z-index: 0;
 }
 
 /* ── Radial vignette ─────────────────────────────────────────────────────── */
@@ -40,10 +41,24 @@
   position: absolute;
   inset: 0;
   background: radial-gradient(ellipse at center,
-    transparent 40%,
-    rgba(0, 0, 0, 0.55) 100%
+    transparent 35%,
+    rgba(0, 0, 0, 0.65) 100%
   );
   pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Flash overlay ───────────────────────────────────────────────────────── */
+.flash-overlay {
+  position: absolute;
+  inset: 0;
+  background: #fff5e0;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+.flash-overlay.flash {
+  animation: clank-flash 0.4s ease-out forwards;
 }
 
 /* ── Main content area ──────────────────────────────────────────────────── */
@@ -56,7 +71,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding-top: 30px;
+  padding-top: 16px;
   gap: 0;
   opacity: 0;
   transition: opacity 0.9s ease;
@@ -69,167 +84,329 @@
   transition: opacity 1s ease;
 }
 
-/* ── Logo row ────────────────────────────────────────────────────────────── */
-.logo-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0;
-  position: relative;
-  height: 76px;
-}
-
-.logo-wrapper {
-  width: 66px;
-  height: 66px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-}
-
-.logo-wrapper img {
-  width: 58px;
-  height: 58px;
-  object-fit: contain;
-}
-
-/* Slide-in from left */
-.logo-wrapper.rust-logo {
-  transform: translateX(-80px);
-  opacity: 0;
-  transition: transform 0.7s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.6s ease;
-}
-.logo-wrapper.rust-logo.slid-in {
-  transform: translateX(0);
-  opacity: 1;
-}
-.logo-wrapper.rust-logo.jitter {
-  animation: logo-jitter 0.08s linear infinite;
-}
-.logo-wrapper.rust-logo.clanked {
-  animation: scale-bounce 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97);
-}
-
-/* Slide-in from right */
-.logo-wrapper.tauri-logo {
-  transform: translateX(80px);
-  opacity: 0;
-  transition: transform 0.7s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.6s ease;
-}
-.logo-wrapper.tauri-logo.slid-in {
-  transform: translateX(0);
-  opacity: 1;
-}
-.logo-wrapper.tauri-logo.jitter {
-  animation: logo-jitter-right 0.08s linear infinite;
-}
-.logo-wrapper.tauri-logo.clanked {
-  animation: scale-bounce 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97);
-}
-
-/* ── Weld gap & arc ─────────────────────────────────────────────────────── */
-.weld-gap {
+/* ── R3P header logo (official corporate mark — do not modify) ──────────── */
+.r3p-header-logo {
   width: 36px;
-  height: 66px;
-  position: relative;
+  height: 36px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #C8823A 0%, #a06830 100%);
+  color: #fff;
+  font-family: ui-monospace, 'JetBrains Mono', 'Fira Code', monospace;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: -0.01em;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  margin-bottom: 6px;
 }
 
-.weld-arc {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-.weld-arc.visible {
-  opacity: 1;
-  animation: weld-pulse 0.4s ease-in-out infinite alternate;
-}
-.weld-arc.solid {
-  opacity: 1;
-  animation: none;
-}
-
-/* Weld solid line (post-clank) */
-.weld-line {
-  position: absolute;
-  width: 3px;
-  height: 0;
-  background: linear-gradient(180deg, #FFC131 0%, #E05D2B 100%);
-  border-radius: 2px;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  transition: height 0.4s ease;
-  box-shadow: 0 0 6px #FFC131, 0 0 12px #E05D2B;
-}
-.weld-line.solidified {
-  height: 52px;
-}
-
-/* ── Flash overlay ───────────────────────────────────────────────────────── */
-.flash-overlay {
-  position: absolute;
-  inset: 0;
-  background: white;
-  opacity: 0;
-  pointer-events: none;
-  z-index: 10;
-}
-.flash-overlay.flash {
-  animation: clank-flash 0.4s ease-out forwards;
-}
-
-/* ── Spark container ─────────────────────────────────────────────────────── */
-.spark-container {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  overflow: hidden;
-  z-index: 5;
-}
-
-.spark {
-  position: absolute;
-  border-radius: 50%;
-  pointer-events: none;
-  animation: spark-fly var(--duration) var(--delay) ease-out forwards;
-}
-
-/* ── App title ───────────────────────────────────────────────────────────── */
+/* ── App title (TRANSMITTAL BUILDER wordmark) ───────────────────────────── */
 .app-title {
   font-family: 'Inter', system-ui, sans-serif;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.15em;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant: small-caps;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   color: #9CA3AF;
-  margin-top: 8px;
+  margin-top: 2px;
   opacity: 0;
-  transition: opacity 0.6s ease 0.5s;
+  transition: opacity 0.6s ease 0.3s;
 }
 .app-title.visible {
   opacity: 1;
 }
 
+/* ── Subtitle: R∛P · ENGINEERED TO DELIVER ─────────────────────────────── */
+.subtitle {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 9px;
+  font-variant: small-caps;
+  letter-spacing: 0.12em;
+  color: rgba(156, 163, 175, 0.55);
+  margin-top: 3px;
+  margin-bottom: 0;
+  line-height: 1;
+}
+.sub-r3p {
+  color: rgba(200, 130, 58, 0.7);
+}
+.sub-cuberoot {
+  font-size: 11px;
+  color: #C8823A;
+  font-weight: 600;
+}
+.sub-tag {
+  color: rgba(156, 163, 175, 0.45);
+  letter-spacing: 0.14em;
+}
+
+/* ── Forge scene ────────────────────────────────────────────────────────── */
+.forge-scene {
+  width: 240px;
+  height: 180px;
+  margin: 5px auto 4px;
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* SVG fills the scene container */
+.forge-scene > svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* ── Hammer (transform-box: fill-box so origin = bounding-box bottom-center) */
+.forge-scene #hammer {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  /* Default position: raised overhead */
+  transform: rotate(-45deg);
+  transition: transform 0.8s ease;
+}
+
+/* SPARKS phase: first descent begins */
+.forge-scene.phase-sparks #hammer {
+  animation: hammer-first-descent 1s ease-in forwards;
+}
+
+/* WELDING phase: looping strike animation */
+.forge-scene.phase-welding #hammer {
+  animation: hammer-strike 1.6s ease-in-out infinite;
+  transition: none;
+}
+
+/* Short mode: limit to one strike cycle */
+.splash-root.short-mode .forge-scene.phase-welding #hammer {
+  animation-iteration-count: 1;
+}
+
+/* CLANK phase: final decisive strike */
+.forge-scene.phase-clank #hammer {
+  animation: hammer-final-strike 0.45s ease-in forwards;
+  transition: none;
+}
+
+/* FINAL / FADE-OUT: hammer settles at rest angle */
+.forge-scene.phase-final #hammer,
+.forge-scene.phase-fade-out #hammer {
+  transform: rotate(-20deg);
+  animation: none;
+  transition: transform 0.6s ease;
+}
+
+@keyframes hammer-first-descent {
+  0%   { transform: rotate(-45deg); }
+  100% { transform: rotate(0deg);   }
+}
+
+@keyframes hammer-strike {
+  0%   { transform: rotate(-45deg); }   /* raised */
+  12%  { transform: rotate(-45deg); }   /* brief hold */
+  48%  { transform: rotate(0deg);   }   /* descent → strike (ease-in) */
+  58%  { transform: rotate(4deg);   }   /* overshoot on impact */
+  72%  { transform: rotate(-8deg);  }   /* first rebound */
+  100% { transform: rotate(-45deg); }   /* back to raised */
+}
+
+@keyframes hammer-final-strike {
+  0%   { transform: rotate(-45deg); }
+  100% { transform: rotate(0deg);   }
+}
+
+/* ── Bolt heat cycle ─────────────────────────────────────────────────────── */
+/* Base: dull amber when not animating */
+.forge-scene #bolt-core,
+.forge-scene #bolt-glow {
+  fill: #8a5520;
+  transition: fill 0.5s ease;
+}
+
+/* FADE_IN + SPARKS: bolt stays dull amber (default) */
+
+/* WELDING: bolt pulses white-hot at each strike, cools back */
+.forge-scene.phase-welding #bolt-core {
+  animation: bolt-heat 1.6s ease-in-out infinite;
+}
+.forge-scene.phase-welding #bolt-glow {
+  animation: bolt-glow-heat 1.6s ease-in-out infinite;
+}
+
+/* Progressive lock to accent amber as Rust phases complete (0–3) */
+/* lock-1: one phase done — bolt stays warm orange between strikes */
+.forge-scene.bolt-locked-1 #bolt-core,
+.forge-scene.phase-welding.bolt-locked-1 #bolt-core {
+  animation: bolt-heat-locked1 1.6s ease-in-out infinite;
+}
+/* lock-2: two phases done — bolt minimum is accent amber */
+.forge-scene.bolt-locked-2 #bolt-core,
+.forge-scene.phase-welding.bolt-locked-2 #bolt-core {
+  animation: bolt-heat-locked2 1.6s ease-in-out infinite;
+}
+/* lock-3: all phases done — bolt fully locked to accent amber */
+.forge-scene.bolt-locked-3 #bolt-core,
+.forge-scene.phase-welding.bolt-locked-3 #bolt-core {
+  animation: none;
+  fill: #C8823A;
+}
+
+/* CLANK: bolt fully locked with brief white-hot flash */
+.forge-scene.phase-clank #bolt-core {
+  animation: bolt-clank-flash 0.5s ease-out forwards;
+}
+/* FINAL: bolt holds amber with breathing glow */
+.forge-scene.phase-final #bolt-core,
+.forge-scene.phase-fade-out #bolt-core {
+  animation: bolt-breathe 2s ease-in-out infinite;
+}
+.forge-scene.phase-final #bolt-glow,
+.forge-scene.phase-fade-out #bolt-glow {
+  animation: bolt-glow-breathe 2s ease-in-out infinite;
+}
+
+@keyframes bolt-heat {
+  0%   { fill: #8a5520; }   /* dull amber */
+  48%  { fill: #fff5e0; }   /* white-hot at strike */
+  65%  { fill: #ffcc66; }   /* hot orange */
+  100% { fill: #8a5520; }   /* cool back to dull */
+}
+@keyframes bolt-glow-heat {
+  0%   { fill: #8a5520; opacity: 0.4; }
+  48%  { fill: #fff5e0; opacity: 0.8; }
+  65%  { fill: #ffcc66; opacity: 0.6; }
+  100% { fill: #8a5520; opacity: 0.4; }
+}
+@keyframes bolt-heat-locked1 {
+  0%   { fill: #a06030; }
+  48%  { fill: #fff5e0; }
+  65%  { fill: #ffcc66; }
+  100% { fill: #a06030; }
+}
+@keyframes bolt-heat-locked2 {
+  0%   { fill: #C8823A; }
+  48%  { fill: #fff5e0; }
+  65%  { fill: #ffcc66; }
+  100% { fill: #C8823A; }
+}
+@keyframes bolt-clank-flash {
+  0%   { fill: #fff5e0; }
+  40%  { fill: #ffcc66; }
+  100% { fill: #C8823A; }
+}
+@keyframes bolt-breathe {
+  0%, 100% { fill: #C8823A; }
+  50%       { fill: #e09a50; }
+}
+@keyframes bolt-glow-breathe {
+  0%, 100% { fill: #C8823A; opacity: 0.5; }
+  50%       { fill: #e09a50; opacity: 0.7; }
+}
+
+/* ── Electric arc (CLANK phase crackle) ─────────────────────────────────── */
+/* Default: hidden (stroke-dashoffset = total path length = 120) */
+.forge-scene #electric-arc {
+  opacity: 0;
+}
+.forge-scene.arc-crackle #electric-arc {
+  animation: arc-draw 0.75s ease-out forwards;
+}
+
+@keyframes arc-draw {
+  0%   { stroke-dashoffset: 120; opacity: 0; }
+  15%  { opacity: 1; }
+  55%  { stroke-dashoffset: 0; opacity: 1; }
+  80%  { stroke-dashoffset: 0; opacity: 0.7; }
+  100% { stroke-dashoffset: 0; opacity: 0; }
+}
+
+/* ── Impact flash pulse ─────────────────────────────────────────────────── */
+.forge-scene #impact-flash {
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: 0;
+}
+/* Each strike triggers a scale + opacity pulse synced with hammer-strike */
+.forge-scene.phase-welding #impact-flash {
+  animation: impact-pulse 1.6s ease-out infinite;
+}
+.forge-scene.phase-clank #impact-flash {
+  animation: impact-pulse-big 0.5s ease-out forwards;
+}
+
+@keyframes impact-pulse {
+  0%   { opacity: 0; transform: scale(0.6); }
+  48%  { opacity: 0.85; transform: scale(1); }
+  75%  { opacity: 0; transform: scale(1.4); }
+  100% { opacity: 0; transform: scale(0.6); }
+}
+@keyframes impact-pulse-big {
+  0%   { opacity: 0; transform: scale(0.5); }
+  25%  { opacity: 1; transform: scale(1.2); }
+  100% { opacity: 0; transform: scale(2); }
+}
+
+/* ── SVG spark elements (pre-placed, fly outward via CSS) ───────────────── */
+/* Sparks fire during WELDING and CLANK phases */
+/* Strike point in SVG coords: (204, 112) */
+
+/* WELDING sparks — continuous loop every 1.6s (matches hammer-strike) */
+.forge-scene.phase-welding .spark-1  { animation: spark-fly-1  1.6s 0.48s ease-out infinite; }
+.forge-scene.phase-welding .spark-2  { animation: spark-fly-2  1.6s 0.50s ease-out infinite; }
+.forge-scene.phase-welding .spark-3  { animation: spark-fly-3  1.6s 0.52s ease-out infinite; }
+.forge-scene.phase-welding .spark-4  { animation: spark-fly-4  1.6s 0.54s ease-out infinite; }
+.forge-scene.phase-welding .spark-5  { animation: spark-fly-5  1.6s 0.56s ease-out infinite; }
+.forge-scene.phase-welding .spark-6  { animation: spark-fly-6  1.6s 0.58s ease-out infinite; }
+.forge-scene.phase-welding .spark-7  { animation: spark-fly-7  1.6s 0.60s ease-out infinite; }
+.forge-scene.phase-welding .spark-8  { animation: spark-fly-8  1.6s 0.62s ease-out infinite; }
+
+/* CLANK burst — bigger sparks, one-shot */
+.forge-scene.phase-clank .spark-1  { animation: spark-fly-1-big  0.8s 0.05s ease-out forwards; }
+.forge-scene.phase-clank .spark-2  { animation: spark-fly-2-big  0.8s 0.08s ease-out forwards; }
+.forge-scene.phase-clank .spark-3  { animation: spark-fly-3-big  0.7s 0.06s ease-out forwards; }
+.forge-scene.phase-clank .spark-4  { animation: spark-fly-4-big  0.9s 0.04s ease-out forwards; }
+.forge-scene.phase-clank .spark-5  { animation: spark-fly-5-big  0.8s 0.07s ease-out forwards; }
+.forge-scene.phase-clank .spark-6  { animation: spark-fly-6-big  0.75s 0.05s ease-out forwards; }
+.forge-scene.phase-clank .spark-7  { animation: spark-fly-7-big  0.85s 0.09s ease-out forwards; }
+.forge-scene.phase-clank .spark-8  { animation: spark-fly-8-big  0.8s 0.06s ease-out forwards; }
+.forge-scene.phase-clank .spark-9  { animation: spark-fly-1-big  0.9s 0.10s ease-out forwards; }
+.forge-scene.phase-clank .spark-10 { animation: spark-fly-5-big  0.75s 0.12s ease-out forwards; }
+
+/* 8 pre-computed trajectories (angle, distance — hard-coded, no JS random) */
+/* Direction 1: upper-left  */ @keyframes spark-fly-1 { 0%{transform:translate(0,0);opacity:0} 8%{opacity:1} 100%{transform:translate(-28px,-38px);opacity:0} }
+/* Direction 2: upper       */ @keyframes spark-fly-2 { 0%{transform:translate(0,0);opacity:0} 8%{opacity:1} 100%{transform:translate(-4px,-44px);opacity:0} }
+/* Direction 3: upper-right */ @keyframes spark-fly-3 { 0%{transform:translate(0,0);opacity:0} 8%{opacity:1} 100%{transform:translate(26px,-40px);opacity:0} }
+/* Direction 4: right       */ @keyframes spark-fly-4 { 0%{transform:translate(0,0);opacity:0} 8%{opacity:1} 100%{transform:translate(42px,-10px);opacity:0} }
+/* Direction 5: lower-right */ @keyframes spark-fly-5 { 0%{transform:translate(0,0);opacity:0} 8%{opacity:1} 100%{transform:translate(34px,28px);opacity:0}  }
+/* Direction 6: lower-left  */ @keyframes spark-fly-6 { 0%{transform:translate(0,0);opacity:0} 8%{opacity:1} 100%{transform:translate(-32px,22px);opacity:0} }
+/* Direction 7: left        */ @keyframes spark-fly-7 { 0%{transform:translate(0,0);opacity:0} 8%{opacity:1} 100%{transform:translate(-44px,-6px);opacity:0}  }
+/* Direction 8: diagonal UL */ @keyframes spark-fly-8 { 0%{transform:translate(0,0);opacity:0} 8%{opacity:1} 100%{transform:translate(-20px,-48px);opacity:0} }
+
+/* CLANK burst: bigger distances */
+@keyframes spark-fly-1-big { 0%{transform:translate(0,0);opacity:0} 5%{opacity:1} 100%{transform:translate(-52px,-70px);opacity:0} }
+@keyframes spark-fly-2-big { 0%{transform:translate(0,0);opacity:0} 5%{opacity:1} 100%{transform:translate(-8px,-78px);opacity:0}  }
+@keyframes spark-fly-3-big { 0%{transform:translate(0,0);opacity:0} 5%{opacity:1} 100%{transform:translate(48px,-72px);opacity:0}  }
+@keyframes spark-fly-4-big { 0%{transform:translate(0,0);opacity:0} 5%{opacity:1} 100%{transform:translate(76px,-18px);opacity:0}  }
+@keyframes spark-fly-5-big { 0%{transform:translate(0,0);opacity:0} 5%{opacity:1} 100%{transform:translate(62px,50px);opacity:0}   }
+@keyframes spark-fly-6-big { 0%{transform:translate(0,0);opacity:0} 5%{opacity:1} 100%{transform:translate(-58px,42px);opacity:0}  }
+@keyframes spark-fly-7-big { 0%{transform:translate(0,0);opacity:0} 5%{opacity:1} 100%{transform:translate(-80px,-10px);opacity:0} }
+@keyframes spark-fly-8-big { 0%{transform:translate(0,0);opacity:0} 5%{opacity:1} 100%{transform:translate(-36px,-82px);opacity:0} }
+
 /* ── Terminal block ──────────────────────────────────────────────────────── */
 .terminal-block {
-  width: 340px;
-  margin-top: 12px;
+  width: 320px;
+  margin-top: 8px;
   font-family: ui-monospace, 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, Consolas, monospace;
   font-size: 11px;
   line-height: 1.65;
   color: #9CA3AF;
-  min-height: 60px;
+  min-height: 54px;
   position: relative;
 }
 
-/* Scanline overlay — CRT vibe; pointer-events: none prevents it from blocking clicks */
+/* Scanline overlay — CRT vibe */
 .terminal-block::after {
   content: '';
   position: absolute;
@@ -253,7 +430,7 @@
   animation: line-in 150ms ease-out;
 }
 
-/* Gutter line number — muted cyan at 60% opacity, separated by 1px vertical rule */
+/* Gutter line number */
 .terminal-gutter-num {
   color: rgba(107, 174, 196, 0.6);
   min-width: 22px;
@@ -266,7 +443,7 @@
 }
 
 .terminal-line .prefix-ok      { color: #4ADE80; }
-.terminal-line .prefix-warn    { color: #FFC131; }
+.terminal-line .prefix-warn    { color: #C8823A; }
 .terminal-line .prefix-error   { color: #F87171; }
 .terminal-line .prefix-pending { color: #6B7280; }
 
@@ -279,83 +456,58 @@
   display: inline-block;
   width: 6px;
   height: 11px;
-  background: #E05D2B;
+  background: #C8823A;
   vertical-align: middle;
   animation: blink 0.9s step-end infinite;
 }
 
-/* ── Tagline ────────────────────────────────────────────────────────────── */
-.tagline {
+/* ── Progress bar ────────────────────────────────────────────────────────── */
+.progress-track {
+  position: absolute;
+  bottom: 38px;
+  left: 24px;
+  right: 24px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.8s ease 0.8s;
+}
+.progress-track.visible {
+  opacity: 1;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #C8823A 0%, #ffcc66 50%, #C8823A 100%);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 400ms ease-out;
+}
+
+/* ── Version metadata row (replaces old Rust/Tauri tagline) ─────────────── */
+.version-meta {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
   text-align: center;
   font-family: 'Inter', system-ui, sans-serif;
-  font-size: 11px;
-  color: #4B5563;
-  letter-spacing: 0.02em;
-  padding-bottom: 20px;
+  font-size: 10px;
+  color: rgba(75, 85, 99, 0.8);
+  letter-spacing: 0.04em;
+  padding-bottom: 12px;
   opacity: 0;
-  transition: opacity 0.8s ease 1s;
+  transition: opacity 0.8s ease 1.2s;
 }
-.tagline.visible {
+.version-meta.visible {
   opacity: 1;
 }
 
-/* ── Keyframes ───────────────────────────────────────────────────────────── */
-@keyframes grid-drift {
-  from { background-position: 0 0; }
-  to   { background-position: 30px 0; }
-}
-
-@keyframes weld-pulse {
-  from { filter: blur(2px) brightness(1);   opacity: 0.75; }
-  to   { filter: blur(5px) brightness(1.4); opacity: 1; }
-}
-
-@keyframes logo-jitter {
-  0%   { transform: translate(0, 0) rotate(0deg); }
-  20%  { transform: translate(-1.5px, 0.5px) rotate(-0.3deg); }
-  40%  { transform: translate(1.5px, -0.5px) rotate(0.3deg); }
-  60%  { transform: translate(-1px, 1px) rotate(-0.2deg); }
-  80%  { transform: translate(1px, -1px) rotate(0.2deg); }
-  100% { transform: translate(0, 0) rotate(0deg); }
-}
-
-@keyframes logo-jitter-right {
-  0%   { transform: translate(0, 0) rotate(0deg); }
-  20%  { transform: translate(1.5px, -0.5px) rotate(0.3deg); }
-  40%  { transform: translate(-1.5px, 0.5px) rotate(-0.3deg); }
-  60%  { transform: translate(1px, 1px) rotate(0.2deg); }
-  80%  { transform: translate(-1px, -1px) rotate(-0.2deg); }
-  100% { transform: translate(0, 0) rotate(0deg); }
-}
-
-@keyframes scale-bounce {
-  0%   { transform: scale(1); }
-  35%  { transform: scale(1.08); }
-  65%  { transform: scale(0.96); }
-  100% { transform: scale(1); }
-}
-
+/* ── Keyframes (global) ──────────────────────────────────────────────────── */
 @keyframes clank-flash {
-  0%   { opacity: 0.75; }
+  0%   { opacity: 0.8; }
   100% { opacity: 0; }
-}
-
-@keyframes spark-fly {
-  0% {
-    transform: translate(0, 0) scale(1);
-    opacity: 1;
-  }
-  60% {
-    opacity: 0.7;
-  }
-  100% {
-    transform: translate(var(--vx), var(--vy)) scale(0.1);
-    opacity: 0;
-  }
 }
 
 @keyframes blink {
@@ -363,86 +515,69 @@
   50%       { opacity: 0; }
 }
 
-@keyframes burst-pulse {
-  0%   { transform: scale(1); opacity: 1; }
-  100% { transform: scale(2.5); opacity: 0; }
-}
-
-/* ── Line-in animation (replaces typewriter) ─────────────────────────────── */
 @keyframes line-in {
   from { opacity: 0; transform: translateX(-8px); }
   to   { opacity: 1; transform: translateX(0); }
 }
 
-/* ── Weld arc slow beat during WELDING ───────────────────────────────────── */
-.weld-arc.visible.welding-active {
-  animation: weld-pulse 0.4s ease-in-out infinite alternate,
-             weld-arc-beat 1.2s ease-in-out infinite;
+/* ── Accessibility: prefers-reduced-motion ──────────────────────────────── */
+/* Disable all forge animations; show static finished-bolt final frame.     */
+@media (prefers-reduced-motion: reduce) {
+  /* Hammer: rests at slight overhead angle — no swing */
+  .forge-scene #hammer,
+  .forge-scene.phase-sparks #hammer,
+  .forge-scene.phase-welding #hammer,
+  .forge-scene.phase-clank #hammer,
+  .forge-scene.phase-final #hammer {
+    animation: none !important;
+    transform: rotate(-20deg) !important;
+    transition: none !important;
+  }
+
+  /* Bolt: immediately shows final forged-amber state */
+  .forge-scene #bolt-core,
+  .forge-scene.phase-welding #bolt-core,
+  .forge-scene.phase-clank #bolt-core,
+  .forge-scene.phase-final #bolt-core {
+    animation: none !important;
+    fill: #C8823A !important;
+    transition: none !important;
+  }
+  .forge-scene #bolt-glow,
+  .forge-scene.phase-welding #bolt-glow,
+  .forge-scene.phase-final #bolt-glow {
+    animation: none !important;
+    fill: #C8823A !important;
+    opacity: 0.5 !important;
+    transition: none !important;
+  }
+
+  /* Sparks: hidden */
+  .forge-scene .spark-1,  .forge-scene .spark-2,
+  .forge-scene .spark-3,  .forge-scene .spark-4,
+  .forge-scene .spark-5,  .forge-scene .spark-6,
+  .forge-scene .spark-7,  .forge-scene .spark-8,
+  .forge-scene .spark-9,  .forge-scene .spark-10 {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+
+  /* Arc crackle: hidden */
+  .forge-scene #electric-arc {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+
+  /* Impact flash: hidden */
+  .forge-scene #impact-flash {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+
+  /* Terminal cursor: no blink */
+  .cursor {
+    animation: none !important;
+    opacity: 1 !important;
+  }
 }
 
-@keyframes weld-arc-beat {
-  0%, 100% { transform: scale(1);    opacity: 0.85; }
-  50%       { transform: scale(1.1); opacity: 1; }
-}
-
-/* ── Logo glow pulse during WELDING ──────────────────────────────────────── */
-.logo-wrapper.welding-pulse img {
-  animation: logo-weld-glow 1.2s ease-in-out infinite;
-}
-
-@keyframes logo-weld-glow {
-  0%, 100% { filter: drop-shadow(0 0 3px rgba(255, 193, 49, 0.2)); }
-  50%       { filter: drop-shadow(0 0 10px rgba(255, 193, 49, 0.65)); }
-}
-
-/* ── Vignette pulse during WELDING ───────────────────────────────────────── */
-.welding-vignette {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse at center,
-    transparent 40%,
-    rgba(0, 0, 0, 0.5) 100%
-  );
-  pointer-events: none;
-  animation: vignette-pulse 1.2s ease-in-out infinite;
-}
-
-@keyframes vignette-pulse {
-  0%, 100% { opacity: 0.2; }
-  50%       { opacity: 0.35; }
-}
-
-/* ── Progress bar ────────────────────────────────────────────────────────── */
-.progress-track {
-  position: absolute;
-  bottom: 42px;
-  left: 24px;
-  right: 24px;
-  height: 3px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 2px;
-  overflow: hidden;
-  opacity: 0;
-  transition: opacity 0.8s ease 1s;
-}
-.progress-track.visible {
-  opacity: 1;
-}
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #E05D2B 0%, #FFC131 100%);
-  border-radius: 2px;
-  width: 0%;
-  transition: width 400ms ease-out;
-}
-
-/* ── Crab emoji bob ──────────────────────────────────────────────────────── */
-.crab-emoji {
-  display: inline-block;
-  animation: crab-bob 2s ease-in-out infinite;
-}
-
-@keyframes crab-bob {
-  0%, 100% { transform: translateY(0); }
-  50%       { transform: translateY(-2px); }
-}

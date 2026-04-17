@@ -328,5 +328,34 @@ Windows-first Tauri desktop application.
 
 ---
 
+## Asset Regeneration
+
+The taskbar icons, Windows Store tiles, ICO file, and NSIS installer art are
+**generated from vector SVG masters** — they must not be hand-edited in
+their raster form.
+
+### Icon sources
+
+| File | Master source |
+|------|--------------|
+| `frontend/src-tauri/icons/*.png`, `icon.ico` | `frontend/src-tauri/icons/icon-master.svg` |
+| `frontend/src-tauri/installer/nsis-header.bmp` | `frontend/src-tauri/installer/nsis-header.svg` |
+| `frontend/src-tauri/installer/nsis-sidebar.bmp` | `frontend/src-tauri/installer/nsis-sidebar.svg` |
+
+### Re-running the generator
+
+```bash
+cd frontend
+npm install          # installs sharp and png-to-ico if not already present
+npm run icons:generate
+```
+
+This writes all PNG/ICO/BMP outputs directly into the repository. Commit the
+resulting binary files along with any SVG master changes.
+
+**Requirements:** Node ≥ 20.19.0 (matches Vite's engine requirement).
+
+---
+
 ROOT3POWER ENGINEERING
 

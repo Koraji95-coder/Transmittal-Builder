@@ -198,11 +198,12 @@ pub fn run() {
             get_backend_url,
             peek_subfolders,
             splash::request_skip_splash,
+            splash::splash_is_first_run,
         ])
         .manage(BackendState {
             url: Mutex::new(String::from("http://127.0.0.1:8000")),
         })
-        .manage(splash::SplashState::new())
+        .manage(splash::SplashState::new(splash::splash_first_launch_after_update()))
         .setup(move |app| {
             let app_handle = app.handle().clone();
             let child_arc = child_for_setup.clone();
@@ -232,6 +233,14 @@ pub fn run() {
 /// Minimum time (ms) the splash must stay visible so the full animation
 /// plays through to the fade-out phase.
 const MIN_SPLASH_MS: u64 = 9_500;
+
+/// Reduced minimum (ms) for subsequent launches with the same version.
+/// Chosen so the user sees at most one hammer-strike cycle before the
+/// window closes (the CSS `animation-iteration-count: 1` in `.splash-root.short-mode`
+/// limits the hammer loop to a single swing on the frontend side).
+/// NOTE: if the frontend `hammer-strike` keyframe duration (currently 1.6 s in
+/// splash.css) changes, this constant should be updated to remain in sync.
+const MIN_SPLASH_MS_SHORT: u64 = 3_200;
 
 /// Extra hold (ms) for the offline error state before the dialog fires.
 const OFFLINE_EXTRA_MS: u64 = 3_000;
@@ -300,8 +309,13 @@ fn startup_sequence(app: tauri::AppHandle, child_arc: Arc<Mutex<Option<Child>>>)
     };
 
     // ── 4. Minimum display duration ───────────────────────────────────────
-    // Wait until MIN_SPLASH_MS from startup (unless the user skipped).
-    let target_ms = MIN_SPLASH_MS + extra_hold_ms;
+    // Pick the appropriate minimum based on whether this is a first/update run.
+    let is_first = app
+        .try_state::<splash::SplashState>()
+        .map(|s| s.first_run())
+        .unwrap_or(true);
+    let min_ms = if is_first { MIN_SPLASH_MS } else { MIN_SPLASH_MS_SHORT };
+    let target_ms = min_ms + extra_hold_ms;
     let elapsed = start.elapsed().as_millis() as u64;
 
     if elapsed < target_ms {

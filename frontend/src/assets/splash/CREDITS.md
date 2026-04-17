@@ -1,18 +1,14 @@
 # Splash Screen Asset Credits
 
-## Logo Attributions
+## Artwork
 
-### Rust Logo (rust-logo.svg)
-- **Description**: 10-tooth gear SVG approximating the official Rust brand mark
-- **Source**: Based on the Rust programming language logo at https://www.rust-lang.org/
-- **License**: The Rust logo is copyright the Rust Foundation, dual-licensed under Apache 2.0 / MIT.
-- **Note**: Recreation for "Built with Rust" attribution purposes per the rust-lang.org media guide.
-
-### Tauri Logo (tauri-logo.svg)
-- **Description**: SVG recreation of the Tauri v2 logo
-- **Source**: Based on official Tauri brand assets at https://tauri.app/
-- **License**: MIT License — Copyright (c) 2019-present Tauri Programme within The Commons Conservancy
-- **Note**: Recreation for "Powered by Tauri" attribution purposes per Tauri brand guidelines.
+### forge-anvil.svg
+- **Description**: Hand-written SVG depicting a blacksmith anvil with a hammer mid-swing,
+  forging a Zeus-style lightning bolt. All paths are native vector (no embedded rasters).
+- **Author**: Original work © R3P / ROOT3POWER ENGINEERING
+- **License**: Proprietary — all rights reserved.
+- **Elements**: `#anvil`, `#hammer`, `#bolt-core`, `#bolt-glow`, `#electric-arc`,
+  `.spark-1` – `.spark-10`, `#impact-flash`. Animated entirely via `splash.css` keyframes.
 
 ## Sound Effects
 
