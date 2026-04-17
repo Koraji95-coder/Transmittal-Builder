@@ -270,15 +270,23 @@
   100% { opacity: 0; }
 }
 
+/* ── Rim-glow transform setup (needed for bolt-lock-flash scale pulse) ──── */
+.forge-scene #rim-glow {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
 /* Progressive rim lock as Rust phases complete — rim-glow brightens */
 .forge-scene.bolt-locked-1 #rim-glow {
-  animation: rim-heat-locked1 1.6s ease-in-out infinite;
+  animation: rim-heat-locked1 1.6s ease-in-out infinite,
+             bolt-lock-flash 500ms ease-out forwards;
 }
 .forge-scene.bolt-locked-2 #rim-glow {
-  animation: rim-heat-locked2 1.6s ease-in-out infinite;
+  animation: rim-heat-locked2 1.6s ease-in-out infinite,
+             bolt-lock-flash 500ms ease-out forwards;
 }
 .forge-scene.bolt-locked-3 #rim-glow {
-  animation: none;
+  animation: bolt-lock-flash 500ms ease-out forwards;
   opacity: 0.22;
   fill: #C8823A;
 }
@@ -294,6 +302,13 @@
   48%  { opacity: 0.6;  fill: #ffcc66; }
   65%  { opacity: 0.35; fill: #C8823A; }
   100% { opacity: 0.12; fill: #C8823A; }
+}
+
+/* One-shot amber flash when a bolt segment locks (decorative — skipped under reduced-motion) */
+@keyframes bolt-lock-flash {
+  0%   { filter: drop-shadow(0 0 0 transparent); transform: scale(1); }
+  40%  { filter: drop-shadow(0 0 8px #FFB84D);   transform: scale(1.12); }
+  100% { filter: drop-shadow(0 0 2px #C8823A);   transform: scale(1); }
 }
 
 /* CLANK: rim fully glows amber */
@@ -314,8 +329,8 @@
   fill: #C8823A;
 }
 @keyframes rim-breathe {
-  0%, 100% { opacity: 0.12; }
-  50%       { opacity: 0.28; }
+  0%, 100% { opacity: 0.12; fill: #8B5A2B; }
+  50%       { opacity: 0.28; fill: #E89B3F; }
 }
 
 
@@ -525,7 +540,7 @@
   background: linear-gradient(90deg, #C8823A 0%, #ffcc66 50%, #C8823A 100%);
   border-radius: 2px;
   width: 0%;
-  transition: width 400ms ease-out;
+  transition: width 600ms cubic-bezier(0.4, 0.0, 0.2, 1);
 }
 
 /* ── Version metadata row (replaces old Rust/Tauri tagline) ─────────────── */
@@ -591,6 +606,17 @@
   /* Resolved prefix: fade-in only (no scale pulse) */
   .terminal-line .prefix-resolved {
     animation: status-check-pop-reduced 250ms ease-out both !important;
+  }
+
+  /* Bolt-lock flash: keep color-change animations, remove decorative scale+glow pulse */
+  .forge-scene.bolt-locked-1 #rim-glow {
+    animation: rim-heat-locked1 1.6s ease-in-out infinite !important;
+  }
+  .forge-scene.bolt-locked-2 #rim-glow {
+    animation: rim-heat-locked2 1.6s ease-in-out infinite !important;
+  }
+  .forge-scene.bolt-locked-3 #rim-glow {
+    animation: none !important;
   }
 }
 

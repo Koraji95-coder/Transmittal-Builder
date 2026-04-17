@@ -234,7 +234,7 @@ pub fn run() {
 
 /// Minimum time (ms) the splash must stay visible so the full animation
 /// plays through to the fade-out phase.
-const MIN_SPLASH_MS: u64 = 11_000;
+const MIN_SPLASH_MS: u64 = 13_000;
 
 /// Reduced minimum (ms) for subsequent launches with the same version.
 /// Chosen so the user sees at most one hammer-strike cycle before the
@@ -332,6 +332,9 @@ fn startup_sequence(app: tauri::AppHandle, child_arc: Arc<Mutex<Option<Child>>>)
         }
         UpdateOutcome::UpToDate => {
             splash::emit_status(&app, "final", "Ready", splash::StatusKind::Ok);
+            // Small pause so the UI has a guaranteed beat to render the "Ready"
+            // line before the startup_sequence proceeds to the MIN_SPLASH_MS wait.
+            thread::sleep(Duration::from_millis(200));
             hold_ms
         }
     };
