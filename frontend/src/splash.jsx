@@ -120,8 +120,9 @@ function msgClass(kind) {
 }
 
 // ── ForgeScene: memoized SVG container ───────────────────────────────────
-// CRITICAL: this component is wrapped in memo() so it never re-renders due to
-// state updates elsewhere in <Splash>. Without this, every spinner tick and
+// CRITICAL: this component is wrapped in memo() and takes no props, so it
+// never re-renders due to state updates elsewhere in <Splash>. Without this,
+// every spinner tick and
 // progress crawler tick would reconcile the SVG branch and starve the CSS
 // animation of main-thread time during the first 3s of startup — which was
 // the visible "sprocket hangs up during stage 01 then unfreezes at stage 03"
