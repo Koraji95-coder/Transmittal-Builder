@@ -144,200 +144,61 @@
 }
 
 /* ── Sprocket (transform-box: fill-box so origin = bounding-box center) ── */
+/* Slow continuous CCW rotation across all phases — no spin-up, no decelerate. */
 .forge-scene #sprocket {
   transform-box: fill-box;
   transform-origin: 50% 50%;
   will-change: transform;
+  animation: sprocket-spin 7s linear infinite;
 }
 
-/* FADE_IN / SPARKS phase: ease-in spin start */
-.forge-scene.phase-fade-in #sprocket,
-.forge-scene.phase-sparks #sprocket {
-  animation: sprocket-spin-start 2.5s cubic-bezier(0.42, 0, 0.58, 1) forwards;
-}
-
-/* WELDING phase: continuous CCW rotation (starts where spin-start ended) */
-.forge-scene.phase-welding #sprocket {
-  animation: sprocket-spin 3.2s linear infinite;
-}
-
-/* Short mode: same — sprocket still spins continuously */
-.splash-root.short-mode .forge-scene.phase-welding #sprocket {
-  animation: sprocket-spin 3.2s linear infinite;
-}
-
-/* CLANK: begin decelerating from linear-cruise velocity to zero */
-.forge-scene.phase-clank #sprocket,
-.forge-scene.phase-final #sprocket,
-.forge-scene.phase-fade-out #sprocket {
-  animation: sprocket-decelerate 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-@keyframes sprocket-decelerate {
-  from { transform: rotate(-280deg); }
-  to   { transform: rotate(-540deg); }  /* 260° more rotation, easing to zero velocity */
-}
-
-/* Sprocket ease-in startup: ~280° with tuned curve to hand off at linear-cruise velocity */
-@keyframes sprocket-spin-start {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(-280deg); }
-}
-
-/* Continuous spin — starts at -280deg where sprocket-spin-start ended,
-   so the transition is seamless when the WELDING phase class is applied. */
+/* Continuous CCW spin: ~7s per revolution. Negative degrees = counter-clockwise. */
 @keyframes sprocket-spin {
-  from { transform: rotate(-280deg); }
-  to   { transform: rotate(-640deg); }
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(-360deg); }
 }
 
 /* ── Hammer (transform-box: fill-box so origin = grip end at ~85%) ──────── */
+/* Slow back-and-forth swing across all active phases — pendulum cadence so the
+   hammer never freezes mid-splash. Impact instant is at 50% of the cycle (1.1s). */
 .forge-scene #hammer {
   transform-box: fill-box;
   transform-origin: center 85%;
-  /* Default position: raised overhead */
-  transform: rotate(-30deg);
-  transition: transform 0.3s ease-out;
   will-change: transform;
+  animation: hammer-swing 2.2s ease-in-out infinite;
 }
 
-/* FADE_IN / SPARKS phase: gentle idle sway — no hard cock-back */
-.forge-scene.phase-fade-in #hammer,
-.forge-scene.phase-sparks #hammer {
-  animation: hammer-idle 2.5s ease-in-out infinite;
-  transition: none;
+/* Single back-and-forth swing: rise → fall → strike → rebound → rise. */
+@keyframes hammer-swing {
+  0%   { transform: rotate(-35deg); }   /* raised */
+  50%  { transform: rotate(0deg);   }   /* descent → strike (face contacts top tooth) */
+  56%  { transform: rotate(3deg);   }   /* slight overshoot on impact */
+  68%  { transform: rotate(-8deg);  }   /* first rebound */
+  100% { transform: rotate(-35deg); }   /* back to raised */
 }
 
-/* WELDING phase: looping strike animation */
-.forge-scene.phase-welding #hammer {
-  animation: hammer-strike 1.6s ease-in-out infinite;
-  transition: none;
+/* ── Strike-point tooth heat (synced with hammer-swing impact at 50% of 2.2s) ── */
+.forge-scene .tooth-glow-0 {
+  animation: tooth-heat-pulse 2.2s 1.1s ease-out infinite;
 }
-
-/* Short mode: limit to one strike cycle */
-.splash-root.short-mode .forge-scene.phase-welding #hammer {
-  animation-iteration-count: 1;
-}
-
-/* CLANK phase: final decisive strike */
-.forge-scene.phase-clank #hammer {
-  animation: hammer-final-strike 1s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-  transition: none;
-}
-
-/* FINAL / FADE-OUT: hammer settles at rest angle */
-.forge-scene.phase-final #hammer,
-.forge-scene.phase-fade-out #hammer {
-  transform: rotate(-20deg);
-  animation: none;
-  transition: transform 0.6s ease;
-}
-
-/* Gentle idle sway — resting angle matches hammer-strike 0% so no pop on transition */
-@keyframes hammer-idle {
-  0%, 100% { transform: rotate(-30deg); }
-  50%       { transform: rotate(-38deg); }
-}
-
-@keyframes hammer-strike {
-  0%   { transform: rotate(-30deg); }   /* raised — matches hammer-idle resting angle */
-  10%  { transform: rotate(-30deg); }   /* settle window — holds at -30° so any prior angle snaps smoothly */
-  15%  { transform: rotate(-30deg); }   /* brief hold before descent */
-  48%  { transform: rotate(0deg);   }   /* descent → strike (ease-in) */
-  58%  { transform: rotate(4deg);   }   /* overshoot on impact */
-  72%  { transform: rotate(-8deg);  }   /* first rebound */
-  100% { transform: rotate(-30deg); }   /* back to raised */
-}
-
-@keyframes hammer-final-strike {
-  0%   { transform: rotate(-30deg); }   /* raised, matches WELDING end */
-  42%  { transform: rotate(2deg);   }   /* strike with slight overshoot — at t≈420ms, syncs with clankImpactTimerRef flash */
-  55%  { transform: rotate(-6deg);  }   /* first rebound */
-  70%  { transform: rotate(-2deg);  }   /* settle */
-  100% { transform: rotate(-20deg); }   /* lifting to FINAL rest angle */
-}
-
-/* ── Rim heat cycle (replaces bolt heat — tooth glows amber on each strike) ── */
-/* During WELDING, strike-point tooth (k=0) glows amber synced with hammer */
-.forge-scene.phase-welding .tooth-glow-0 {
-  animation: tooth-heat-pulse 1.6s 0.77s ease-out infinite;
-}
-/* Neighboring teeth glow faintly as sprocket rotates */
-.forge-scene.phase-welding .tooth-glow-15,
-.forge-scene.phase-welding .tooth-glow-1 {
-  animation: tooth-heat-pulse 1.6s 0.79s ease-out infinite;
+/* Neighboring teeth glow faintly as the sprocket rotates past the strike point */
+.forge-scene .tooth-glow-15,
+.forge-scene .tooth-glow-1 {
+  animation: tooth-heat-pulse 2.2s 1.12s ease-out infinite;
   opacity: 0;
 }
 
 @keyframes tooth-heat-pulse {
   0%   { opacity: 0; }
-  45%  { opacity: 0.85; }
-  55%  { opacity: 0.6; }
-  85%  { opacity: 0; }
+  10%  { opacity: 0.85; }
+  25%  { opacity: 0.4; }
+  60%  { opacity: 0; }
   100% { opacity: 0; }
 }
 
-/* ── Rim-glow transform setup (needed for bolt-lock-flash scale pulse) ──── */
+/* ── Rim glow: removed from the splash (kept in SVG for backward compat) ──── */
 .forge-scene #rim-glow {
-  transform-box: fill-box;
-  transform-origin: center;
-}
-
-/* Progressive rim lock as Rust phases complete — rim-glow brightens */
-.forge-scene.bolt-locked-1 #rim-glow {
-  animation: rim-heat-locked1 1.6s ease-in-out infinite,
-             bolt-lock-flash 500ms ease-out forwards;
-}
-.forge-scene.bolt-locked-2 #rim-glow {
-  animation: rim-heat-locked2 1.6s ease-in-out infinite,
-             bolt-lock-flash 500ms ease-out forwards;
-}
-.forge-scene.bolt-locked-3 #rim-glow {
-  animation: bolt-lock-flash 500ms ease-out forwards,
-             rim-breathe 2.5s ease-in-out 500ms infinite;
-  fill: #C8823A;
-}
-
-@keyframes rim-heat-locked1 {
-  0%   { opacity: 0.05; fill: #8a5520; }
-  48%  { opacity: 0.5;  fill: #ffcc66; }
-  65%  { opacity: 0.3;  fill: #C8823A; }
-  100% { opacity: 0.05; fill: #8a5520; }
-}
-@keyframes rim-heat-locked2 {
-  0%   { opacity: 0.12; fill: #C8823A; }
-  48%  { opacity: 0.6;  fill: #ffcc66; }
-  65%  { opacity: 0.35; fill: #C8823A; }
-  100% { opacity: 0.12; fill: #C8823A; }
-}
-
-/* One-shot amber flash when a bolt segment locks (decorative — skipped under reduced-motion) */
-@keyframes bolt-lock-flash {
-  0%   { filter: drop-shadow(0 0 0 transparent); transform: scale(1); }
-  40%  { filter: drop-shadow(0 0 8px #FFB84D);   transform: scale(1.12); }
-  100% { filter: drop-shadow(0 0 2px #C8823A);   transform: scale(1); }
-}
-
-/* CLANK: rim fully glows amber */
-.forge-scene.phase-clank #rim-glow {
-  animation: rim-heat-clank 0.8s ease-out forwards;
-  fill: #C8823A;
-}
-@keyframes rim-heat-clank {
-  0%   { opacity: 0.1; }
-  20%  { opacity: 0.7; }
-  100% { opacity: 0.1; }
-}
-
-/* FINAL: rim breathing amber glow */
-.forge-scene.phase-final #rim-glow,
-.forge-scene.phase-fade-out #rim-glow {
-  animation: rim-breathe 2s ease-in-out infinite;
-  fill: #C8823A;
-}
-@keyframes rim-breathe {
-  0%, 100% { opacity: 0.12; fill: #8B5A2B; }
-  50%       { opacity: 0.28; fill: #E89B3F; }
+  display: none;
 }
 
 
@@ -358,77 +219,42 @@
   100% { stroke-dashoffset: 0;   opacity: 0; }
 }
 
-/* ── Impact flash pulse ─────────────────────────────────────────────────── */
+/* ── Impact flash pulse (synced to hammer-swing impact at 50% of 2.2s) ────── */
 .forge-scene #impact-flash {
   transform-box: fill-box;
   transform-origin: center;
   opacity: 0;
-}
-/* Each strike triggers a scale + opacity pulse synced with hammer-strike */
-.forge-scene.phase-welding #impact-flash {
-  animation: impact-pulse 1.6s ease-out infinite;
-}
-.forge-scene.phase-clank #impact-flash {
-  animation: impact-pulse-big 0.5s ease-out forwards;
+  animation: impact-pulse 2.2s 1.1s ease-out infinite;
 }
 
 @keyframes impact-pulse {
-  0%   { opacity: 0; transform: scale(0.6); }
-  48%  { opacity: 0.85; transform: scale(1); }
-  75%  { opacity: 0; transform: scale(1.4); }
-  100% { opacity: 0; transform: scale(0.6); }
-}
-@keyframes impact-pulse-big {
-  0%   { opacity: 0; transform: scale(0.5); }
-  25%  { opacity: 1; transform: scale(1.2); }
-  100% { opacity: 0; transform: scale(2); }
+  0%   { opacity: 0;    transform: scale(0.6); }
+  5%   { opacity: 0.85; transform: scale(1);   }
+  25%  { opacity: 0;    transform: scale(1.4); }
+  100% { opacity: 0;    transform: scale(0.6); }
 }
 
-/* ── SVG spark elements (pre-placed, fly outward via CSS) ───────────────── */
-/* Sparks fire during WELDING and CLANK phases */
-/* Strike point in SVG coords: (204, 112) */
+/* ── SVG spark elements (pre-placed at strike point, fly outward via CSS) ─── */
+/* Sparks fire on every hammer strike — 2.2s period, 1.1s delay = impact instant. */
+.forge-scene .spark-1 { animation: spark-fly-1 2.2s 1.10s ease-out infinite; }
+.forge-scene .spark-2 { animation: spark-fly-2 2.2s 1.11s ease-out infinite; }
+.forge-scene .spark-3 { animation: spark-fly-3 2.2s 1.10s ease-out infinite; }
+.forge-scene .spark-4 { animation: spark-fly-4 2.2s 1.12s ease-out infinite; }
+.forge-scene .spark-5 { animation: spark-fly-5 2.2s 1.11s ease-out infinite; }
+.forge-scene .spark-6 { animation: spark-fly-6 2.2s 1.10s ease-out infinite; }
+.forge-scene .spark-7 { animation: spark-fly-7 2.2s 1.13s ease-out infinite; }
+.forge-scene .spark-8 { animation: spark-fly-8 2.2s 1.10s ease-out infinite; }
 
-/* WELDING sparks — continuous loop every 1.6s (matches hammer-strike) */
-.forge-scene.phase-welding .spark-1  { animation: spark-fly-1  1.6s 0.77s ease-out infinite; }
-.forge-scene.phase-welding .spark-2  { animation: spark-fly-2  1.6s 0.79s ease-out infinite; }
-.forge-scene.phase-welding .spark-3  { animation: spark-fly-3  1.6s 0.81s ease-out infinite; }
-.forge-scene.phase-welding .spark-4  { animation: spark-fly-4  1.6s 0.83s ease-out infinite; }
-.forge-scene.phase-welding .spark-5  { animation: spark-fly-5  1.6s 0.85s ease-out infinite; }
-.forge-scene.phase-welding .spark-6  { animation: spark-fly-6  1.6s 0.87s ease-out infinite; }
-.forge-scene.phase-welding .spark-7  { animation: spark-fly-7  1.6s 0.89s ease-out infinite; }
-.forge-scene.phase-welding .spark-8  { animation: spark-fly-8  1.6s 0.91s ease-out infinite; }
-
-/* CLANK burst — bigger sparks, one-shot */
-.forge-scene.phase-clank .spark-1  { animation: spark-fly-1-big  0.8s 0.05s ease-out forwards; }
-.forge-scene.phase-clank .spark-2  { animation: spark-fly-2-big  0.8s 0.08s ease-out forwards; }
-.forge-scene.phase-clank .spark-3  { animation: spark-fly-3-big  0.7s 0.06s ease-out forwards; }
-.forge-scene.phase-clank .spark-4  { animation: spark-fly-4-big  0.9s 0.04s ease-out forwards; }
-.forge-scene.phase-clank .spark-5  { animation: spark-fly-5-big  0.8s 0.07s ease-out forwards; }
-.forge-scene.phase-clank .spark-6  { animation: spark-fly-6-big  0.75s 0.05s ease-out forwards; }
-.forge-scene.phase-clank .spark-7  { animation: spark-fly-7-big  0.85s 0.09s ease-out forwards; }
-.forge-scene.phase-clank .spark-8  { animation: spark-fly-8-big  0.8s 0.06s ease-out forwards; }
-.forge-scene.phase-clank .spark-9  { animation: spark-fly-1-big  0.9s 0.10s ease-out forwards; }
-.forge-scene.phase-clank .spark-10 { animation: spark-fly-5-big  0.75s 0.12s ease-out forwards; }
-
-/* 8 pre-computed trajectories (angle, distance — hard-coded, no JS random) */
-/* Direction 1: upper-left  */ @keyframes spark-fly-1 { 0%{transform:translate(0,0);opacity:0} 8%{opacity:1} 100%{transform:translate(-28px,-38px);opacity:0} }
-/* Direction 2: upper       */ @keyframes spark-fly-2 { 0%{transform:translate(0,0);opacity:0} 8%{opacity:1} 100%{transform:translate(-4px,-44px);opacity:0} }
-/* Direction 3: upper-right */ @keyframes spark-fly-3 { 0%{transform:translate(0,0);opacity:0} 8%{opacity:1} 100%{transform:translate(26px,-40px);opacity:0} }
-/* Direction 4: right       */ @keyframes spark-fly-4 { 0%{transform:translate(0,0);opacity:0} 8%{opacity:1} 100%{transform:translate(42px,-10px);opacity:0} }
-/* Direction 5: lower-right */ @keyframes spark-fly-5 { 0%{transform:translate(0,0);opacity:0} 8%{opacity:1} 100%{transform:translate(34px,28px);opacity:0}  }
-/* Direction 6: lower-left  */ @keyframes spark-fly-6 { 0%{transform:translate(0,0);opacity:0} 8%{opacity:1} 100%{transform:translate(-32px,22px);opacity:0} }
-/* Direction 7: left        */ @keyframes spark-fly-7 { 0%{transform:translate(0,0);opacity:0} 8%{opacity:1} 100%{transform:translate(-44px,-6px);opacity:0}  }
-/* Direction 8: diagonal UL */ @keyframes spark-fly-8 { 0%{transform:translate(0,0);opacity:0} 8%{opacity:1} 100%{transform:translate(-20px,-48px);opacity:0} }
-
-/* CLANK burst: bigger distances */
-@keyframes spark-fly-1-big { 0%{transform:translate(0,0);opacity:0} 5%{opacity:1} 100%{transform:translate(-52px,-70px);opacity:0} }
-@keyframes spark-fly-2-big { 0%{transform:translate(0,0);opacity:0} 5%{opacity:1} 100%{transform:translate(-8px,-78px);opacity:0}  }
-@keyframes spark-fly-3-big { 0%{transform:translate(0,0);opacity:0} 5%{opacity:1} 100%{transform:translate(48px,-72px);opacity:0}  }
-@keyframes spark-fly-4-big { 0%{transform:translate(0,0);opacity:0} 5%{opacity:1} 100%{transform:translate(76px,-18px);opacity:0}  }
-@keyframes spark-fly-5-big { 0%{transform:translate(0,0);opacity:0} 5%{opacity:1} 100%{transform:translate(62px,50px);opacity:0}   }
-@keyframes spark-fly-6-big { 0%{transform:translate(0,0);opacity:0} 5%{opacity:1} 100%{transform:translate(-58px,42px);opacity:0}  }
-@keyframes spark-fly-7-big { 0%{transform:translate(0,0);opacity:0} 5%{opacity:1} 100%{transform:translate(-80px,-10px);opacity:0} }
-@keyframes spark-fly-8-big { 0%{transform:translate(0,0);opacity:0} 5%{opacity:1} 100%{transform:translate(-36px,-82px);opacity:0} }
+/* 8 pre-computed trajectories (angle, distance — hard-coded, no JS random).
+   Visible window is short (~0–35% of cycle) so each burst reads as a quick crackle. */
+/* Direction 1: upper-left  */ @keyframes spark-fly-1 { 0%{transform:translate(0,0);opacity:0} 3%{opacity:1} 35%{transform:translate(-28px,-38px);opacity:0} 100%{transform:translate(-28px,-38px);opacity:0} }
+/* Direction 2: upper       */ @keyframes spark-fly-2 { 0%{transform:translate(0,0);opacity:0} 3%{opacity:1} 35%{transform:translate(-4px,-44px);opacity:0}  100%{transform:translate(-4px,-44px);opacity:0}  }
+/* Direction 3: upper-right */ @keyframes spark-fly-3 { 0%{transform:translate(0,0);opacity:0} 3%{opacity:1} 35%{transform:translate(26px,-40px);opacity:0}  100%{transform:translate(26px,-40px);opacity:0}  }
+/* Direction 4: right       */ @keyframes spark-fly-4 { 0%{transform:translate(0,0);opacity:0} 3%{opacity:1} 35%{transform:translate(42px,-10px);opacity:0}  100%{transform:translate(42px,-10px);opacity:0}  }
+/* Direction 5: lower-right */ @keyframes spark-fly-5 { 0%{transform:translate(0,0);opacity:0} 3%{opacity:1} 35%{transform:translate(34px,28px);opacity:0}   100%{transform:translate(34px,28px);opacity:0}   }
+/* Direction 6: lower-left  */ @keyframes spark-fly-6 { 0%{transform:translate(0,0);opacity:0} 3%{opacity:1} 35%{transform:translate(-32px,22px);opacity:0}  100%{transform:translate(-32px,22px);opacity:0}  }
+/* Direction 7: left        */ @keyframes spark-fly-7 { 0%{transform:translate(0,0);opacity:0} 3%{opacity:1} 35%{transform:translate(-44px,-6px);opacity:0}  100%{transform:translate(-44px,-6px);opacity:0}  }
+/* Direction 8: diagonal UL */ @keyframes spark-fly-8 { 0%{transform:translate(0,0);opacity:0} 3%{opacity:1} 35%{transform:translate(-20px,-48px);opacity:0} 100%{transform:translate(-20px,-48px);opacity:0} }
 
 /* ── Terminal block ──────────────────────────────────────────────────────── */
 .terminal-block {
@@ -614,17 +440,6 @@
   /* Resolved prefix: fade-in only (no scale pulse) */
   .terminal-line .prefix-resolved {
     animation: status-check-pop-reduced 250ms ease-out both !important;
-  }
-
-  /* Bolt-lock flash: keep color-change animations, remove decorative scale+glow pulse */
-  .forge-scene.bolt-locked-1 #rim-glow {
-    animation: rim-heat-locked1 1.6s ease-in-out infinite !important;
-  }
-  .forge-scene.bolt-locked-2 #rim-glow {
-    animation: rim-heat-locked2 1.6s ease-in-out infinite !important;
-  }
-  .forge-scene.bolt-locked-3 #rim-glow {
-    animation: none !important;
   }
 }
 
