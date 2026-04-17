@@ -181,7 +181,7 @@
 .forge-scene .tooth-glow-0 {
   animation: tooth-heat-pulse 2.2s 1.1s ease-out infinite;
 }
-/* Neighbouring teeth glow faintly as the sprocket rotates past the strike point */
+/* Neighboring teeth glow faintly as the sprocket rotates past the strike point */
 .forge-scene .tooth-glow-15,
 .forge-scene .tooth-glow-1 {
   animation: tooth-heat-pulse 2.2s 1.12s ease-out infinite;
