@@ -1,7 +1,7 @@
 /**
  * splash.jsx — Forge-branded animated splash screen.
  *
- * Animation sequence (~11 seconds):
+ * Animation sequence (~13 seconds):
  *   0.0–1.5s  FADE_IN:  Background + anvil + R3P header fade in; sprocket/hammer begin.
  *   1.5–2.5s  SPARKS:   Hammer idle sway transitions; phase list starts streaming.
  *   2.5–8.5s  WELDING:  Hammer strike loop (~1.6 s per cycle); sparks radiate;
@@ -101,9 +101,9 @@ const PHASE = {
 const SPINNER_FRAMES = ['⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧','⠇','⠏'];
 
 // Minimum ms a phase must be visible in Pending state before Ok can render.
-const MIN_PENDING_MS = 400;
+const MIN_PENDING_MS = 700;
 // Minimum ms gap between consecutive phase transitions.
-const MIN_GAP_MS = 200;
+const MIN_GAP_MS = 400;
 
 // ── Status line helpers ───────────────────────────────────────────────────
 function prefixForKind(kind, spinnerFrame, reducedMotion) {
