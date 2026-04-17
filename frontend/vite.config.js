@@ -24,6 +24,15 @@ export default defineConfig({
   // normal VITE_* prefix so Tauri-injected env vars are accessible.
   envPrefix: ["VITE_", "TAURI_ENV_"],
 
+  // ── Build-time constants ──────────────────────────────────────
+  define: {
+    // APP_VERSION is read by the splash screen subtitle and updater footer.
+    // Falls back to "4.0.0" when npm_package_version is not set (e.g. in CI).
+    __APP_VERSION__: JSON.stringify(
+      process.env.npm_package_version || "4.0.0"
+    ),
+  },
+
   build: {
     // Tauri uses Chromium on Windows; target it explicitly for an
     // optimal, smaller output bundle.
