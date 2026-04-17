@@ -143,12 +143,13 @@ function Splash({ onLoopRestart = null }) {
   const [phase, setPhase]                   = useState(PHASE.INIT);
   const [contentVisible, setContentVisible] = useState(false);
   const [fadingOut, setFadingOut]           = useState(false);
-  const [titleVisible, setTitleVisible]     = useState(false);
-  const [taglineVisible, setTaglineVisible] = useState(false);
+  const [chromeVisible, setChromeVisible]   = useState(false);
   const [flash, setFlash]                   = useState(false);
   const [arcCrackle, setArcCrackle]         = useState(false);
   // null = unknown (waiting for Tauri), true = first run (full mode), false = short mode
   const [isFirstRun, setIsFirstRun]         = useState(null);
+  // Skip hint — appears after ~3s so it doesn't compete with early animation
+  const [skipHintVisible, setSkipHintVisible] = useState(false);
 
   // Terminal lines: { phase, prefix, pClass, msg, mClass, done, spinnerFrame }
   const [lines, setLines] = useState([]);
@@ -164,6 +165,11 @@ function Splash({ onLoopRestart = null }) {
   const [completedPhaseCount, setCompletedPhaseCount] = useState(0);
   const completedPhasesRef = useRef(new Set());
 
+  // Smooth progress bar: displayProgress crawls between phase events to avoid dead zones.
+  const [displayProgress, setDisplayProgress] = useState(0);
+  const lastEventProgressRef = useRef(0);
+  const lastEventTimeRef = useRef(Date.now());
+
   // ── Minimum-duration queue ────────────────────────────────────────────────
   // Each entry: { phase, message, kind }
   // We enforce MIN_PENDING_MS before applying an Ok/warn/error on a phase that
@@ -176,6 +182,7 @@ function Splash({ onLoopRestart = null }) {
   const skippedRef      = useRef(false);
   const phaseRef        = useRef(PHASE.INIT);
   const tauriRef        = useRef(null);
+  const clankImpactTimerRef = useRef(null);
   // Stable ref to the loop-restart callback so the phase sequencer effect
   // can call it without needing it in its dependency array.
   const onLoopRestartRef = useRef(onLoopRestart);
@@ -209,6 +216,30 @@ function Splash({ onLoopRestart = null }) {
   useEffect(() => () => {
     if (spinnerTimerRef.current) clearInterval(spinnerTimerRef.current);
   }, []);
+
+  // ── Progress bar floor: snap upward when a phase completes ───────────────
+  useEffect(() => {
+    const floor = (completedPhaseCount / 4) * 100;
+    lastEventProgressRef.current = floor;
+    lastEventTimeRef.current = Date.now();
+    setDisplayProgress((p) => Math.max(p, floor));
+  }, [completedPhaseCount]);
+
+  // ── Progress bar crawler: slowly creep between phase events ──────────────
+  useEffect(() => {
+    const id = setInterval(() => {
+      setDisplayProgress((p) => {
+        // Final event → let the phase count drive us to 100%
+        if (completedPhaseCount >= 4) return 100;
+        const floor = lastEventProgressRef.current;
+        const target = Math.min(floor + 20, 95);
+        if (p >= target) return p;
+        // Creep ~0.6% per 100ms so a 20% gap fills in ~3.3s
+        return Math.min(target, p + 0.6);
+      });
+    }, 100);
+    return () => clearInterval(id);
+  }, [completedPhaseCount]);
 
   // ── Splash ready: show window after first CSS paint ───────────────────────
   // The splash window is created with visible:false to prevent a transparent-
@@ -443,8 +474,7 @@ function Splash({ onLoopRestart = null }) {
       if (target !== undefined) {
         setPhase(target);
         setContentVisible(true);
-        setTitleVisible(true);
-        const tt = setTimeout(() => setTaglineVisible(true), 300);
+        const tt = setTimeout(() => setChromeVisible(true), 300);
         return () => clearTimeout(tt);
       }
     }
@@ -453,9 +483,8 @@ function Splash({ onLoopRestart = null }) {
     const t1 = setTimeout(() => {
       setPhase(PHASE.FADE_IN);
       setContentVisible(true);
-      setTitleVisible(true);
-      // Stagger tagline so sprocket/hammer has begun gentle motion first
-      setTimeout(() => setTaglineVisible(true), 800);
+      // Stagger chrome so sprocket/hammer has begun gentle motion first
+      setTimeout(() => setChromeVisible(true), 800);
     }, 50);
 
     // Phase 2: Sparks begin (1.5 s) — hammer idle → strike transition
@@ -471,14 +500,15 @@ function Splash({ onLoopRestart = null }) {
     // Phase 4: Clank (8.5 s) — final decisive strike; arc crackle; bolt fully locked
     const t4 = setTimeout(() => {
       setPhase(PHASE.CLANK);
-
-      // Impact flash
-      setFlash(true);
-      setTimeout(() => setFlash(false), 400);
-
-      // Electric arc crackle along bolt
-      setArcCrackle(true);
-      setTimeout(() => setArcCrackle(false), 800);
+      // hammer-final-strike is 0.45s ease-in to 0°; fire visual effects at impact, not at phase start
+      const impactDelay = 420;
+      const t4a = setTimeout(() => {
+        setFlash(true);
+        setTimeout(() => setFlash(false), 400);
+        setArcCrackle(true);
+        setTimeout(() => setArcCrackle(false), 800);
+      }, impactDelay);
+      clankImpactTimerRef.current = t4a;
     }, 8500);
 
     // Phase 5: Final (9.5 s) — hammer rests; bolt breathing amber glow
@@ -498,8 +528,12 @@ function Splash({ onLoopRestart = null }) {
       }
     }, 10500);
 
+    // Skip hint — fade in after ~3s so it doesn't compete with early animation
+    const t7 = setTimeout(() => setSkipHintVisible(true), 3000);
+
     return () => {
-      [t1, t2, t3, t4, t5, t6].forEach(clearTimeout);
+      [t1, t2, t3, t4, t5, t6, t7].forEach(clearTimeout);
+      if (clankImpactTimerRef.current) clearTimeout(clankImpactTimerRef.current);
     };
   }, []);
 
@@ -544,7 +578,7 @@ function Splash({ onLoopRestart = null }) {
         />
 
         {/* TRANSMITTAL BUILDER wordmark */}
-        <div className={`app-title${titleVisible ? " visible" : ""}`}>
+        <div className={`app-title${contentVisible ? " visible" : ""}`}>
           Transmittal Builder
         </div>
 
@@ -561,10 +595,10 @@ function Splash({ onLoopRestart = null }) {
         />
 
         {/* Progress bar — in content flow, between forge scene and terminal */}
-        <div className={`progress-track${taglineVisible ? " visible" : ""}`}>
+        <div className={`progress-track${chromeVisible ? " visible" : ""}`}>
           <div
             className="progress-fill"
-            style={{ width: `${(completedPhaseCount / 4) * 100}%` }}
+            style={{ width: `${displayProgress}%` }}
           />
         </div>
 
@@ -592,8 +626,13 @@ function Splash({ onLoopRestart = null }) {
         </div>
       </div>
 
+      {/* Skip hint — appears after scene has established */}
+      <div className={`skip-hint${skipHintVisible ? " visible" : ""}`}>
+        click or press Esc to skip
+      </div>
+
       {/* Version metadata row */}
-      <div className={`version-meta${taglineVisible ? " visible" : ""}`}>
+      <div className={`version-meta${chromeVisible ? " visible" : ""}`}>
         v{APP_VERSION}&nbsp;&middot;&nbsp;R3P Transmittal Builder
       </div>
     </div>
