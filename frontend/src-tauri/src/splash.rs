@@ -88,6 +88,19 @@ struct SplashSeen {
 /// On subsequent launches with the same version it returns `false`, triggering
 /// the short (~3.2 s) mode.
 pub fn splash_first_launch_after_update() -> bool {
+    // ── Dev override: TRANSMITTAL_SPLASH_FORCE_FRESH ──────────────────────
+    // When set to "1", "true", or "yes" (case-insensitive), always return true
+    // so the full 11-second splash plays on every launch regardless of the
+    // splash-seen.json sentinel.  The sentinel is NOT written in this path, so
+    // it remains unchanged and short-mode resumes once the var is unset.
+    if let Ok(val) = std::env::var("TRANSMITTAL_SPLASH_FORCE_FRESH") {
+        let v = val.to_ascii_lowercase();
+        if v == "1" || v == "true" || v == "yes" {
+            eprintln!("[splash] TRANSMITTAL_SPLASH_FORCE_FRESH set — forcing first-run mode");
+            return true;
+        }
+    }
+
     let current = env!("CARGO_PKG_VERSION");
 
     // Resolve %APPDATA%\com.r3p.transmittal\ on Windows,

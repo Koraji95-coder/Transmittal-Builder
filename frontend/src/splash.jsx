@@ -31,8 +31,36 @@ const APP_VERSION =
 // Corresponds to CSS classes .bolt-locked-1 / .bolt-locked-2 / .bolt-locked-3.
 const MAX_LOCKED_PHASES = 3;
 
+// ── Runtime Tauri guard ────────────────────────────────────────────────────
+// window.__TAURI_INTERNALS__ is injected by the Tauri webview; absent in any
+// plain browser.  All IPC calls (listen / invoke) must be guarded by this flag
+// because the module imports succeed in Vite dev mode but the IPC calls throw
+// "Cannot read properties of undefined (reading 'transformCallback')" at runtime.
+const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+
+// ── Browser-preview URL param overrides ──────────────────────────────────
+// Parsed once at module load.  Completely ignored when running inside Tauri.
+//   ?phase=welding  — jump directly to that phase and stay there indefinitely
+//   ?loop=1         — replay the full sequence on every cycle instead of ending
+//   ?mode=short|full — override short/full mode without rebuilding Tauri
+const _previewParams = !isTauri ? new URLSearchParams(window.location.search) : null;
+const PREVIEW_FORCED_PHASE = _previewParams?.get("phase") ?? null;
+const PREVIEW_LOOP_MODE    = _previewParams?.get("loop") === "1";
+const PREVIEW_FORCED_MODE  = _previewParams?.get("mode") ?? null;
+if (!isTauri && (PREVIEW_FORCED_PHASE || PREVIEW_LOOP_MODE || PREVIEW_FORCED_MODE)) {
+  const parts = [
+    PREVIEW_FORCED_PHASE && `phase=${PREVIEW_FORCED_PHASE}`,
+    PREVIEW_LOOP_MODE    && "loop=1",
+    PREVIEW_FORCED_MODE  && `mode=${PREVIEW_FORCED_MODE}`,
+  ].filter(Boolean);
+  console.log(`[splash] Preview overrides: ${parts.join(", ")}`);
+}
+
 // Dynamic import so the app never crashes if Tauri IPC is absent (browser preview).
+// Returns null immediately when isTauri is false — the module itself loads fine
+// from Vite but calling listen/invoke would throw without __TAURI_INTERNALS__.
 const getTauriApi = async () => {
+  if (!isTauri) return null;
   try {
     const [{ listen }, { invoke }] = await Promise.all([
       import("@tauri-apps/api/event"),
@@ -110,7 +138,7 @@ function msgClass(kind) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────
-function Splash() {
+function Splash({ onLoopRestart = null }) {
   const reducedMotion                       = usePrefersReducedMotion();
   const [phase, setPhase]                   = useState(PHASE.INIT);
   const [contentVisible, setContentVisible] = useState(false);
@@ -148,6 +176,10 @@ function Splash() {
   const skippedRef      = useRef(false);
   const phaseRef        = useRef(PHASE.INIT);
   const tauriRef        = useRef(null);
+  // Stable ref to the loop-restart callback so the phase sequencer effect
+  // can call it without needing it in its dependency array.
+  const onLoopRestartRef = useRef(onLoopRestart);
+  useEffect(() => { onLoopRestartRef.current = onLoopRestart; }, [onLoopRestart]);
 
   // Keep phaseRef in sync
   useEffect(() => { phaseRef.current = phase; }, [phase]);
@@ -327,25 +359,52 @@ function Splash() {
   // ── Tauri event wiring ───────────────────────────────────────────────────
   useEffect(() => {
     let unlisten = null;
+    const previewTimers = [];
     getTauriApi().then((api) => {
       if (!api) {
-        // Browser preview — no Tauri IPC; default to full mode
-        setIsFirstRun(true);
+        // Browser preview — no Tauri IPC
+        console.log("[splash] Running in browser preview mode (no Tauri IPC)");
+
+        // ?mode=short forces short-mode; everything else uses full mode.
+        if (PREVIEW_FORCED_MODE === "short") setIsFirstRun(false);
+        else setIsFirstRun(true);
+
+        // Inject fake status events that mirror the Rust startup_sequence,
+        // unless a forced phase is active (the scene stays static, no terminal).
+        if (!PREVIEW_FORCED_PHASE) {
+          const push = (phase, message, kind) => {
+            statusQueueRef.current.push({ phase, message, kind });
+            drainQueue();
+          };
+          previewTimers.push(
+            setTimeout(() => push("svc",     "Starting backend service", "pending"), 1500),
+            setTimeout(() => push("svc",     "Starting backend service", "ok"),      2000),
+            setTimeout(() => push("drive",   "Mounting shared drive",    "pending"), 2300),
+            setTimeout(() => push("drive",   "Mounting shared drive",    "ok"),      2800),
+            setTimeout(() => push("updates", "Checking for updates",     "pending"), 3100),
+            setTimeout(() => push("updates", "Checking for updates",     "ok"),      3600),
+            setTimeout(() => push("final",   "Ready",                    "ok"),      8500),
+          );
+        }
         return;
       }
       tauriRef.current = api;
-      api
-        .listen("splash://status", (ev) => {
-          const { message, kind, phase } = ev.payload ?? {};
-          if (!message) return;
-          // Use the phase id from Rust; null for events without a phase so that
-          // no unintended deduplication occurs (in-place update requires a non-null phase).
-          statusQueueRef.current.push({ phase: phase ?? null, message, kind: kind ?? "pending" });
-          drainQueue();
-        })
-        .then((fn) => {
-          unlisten = fn;
-        });
+      try {
+        api
+          .listen("splash://status", (ev) => {
+            const { message, kind, phase } = ev.payload ?? {};
+            if (!message) return;
+            // Use the phase id from Rust; null for events without a phase so that
+            // no unintended deduplication occurs (in-place update requires a non-null phase).
+            statusQueueRef.current.push({ phase: phase ?? null, message, kind: kind ?? "pending" });
+            drainQueue();
+          })
+          .then((fn) => {
+            unlisten = fn;
+          });
+      } catch (err) {
+        console.warn("[splash] Tauri IPC unavailable, running in preview mode", err);
+      }
 
       // Query first-run flag to decide full (9.5 s) vs. short (3.2 s) mode.
       api.invoke("splash_is_first_run")
@@ -354,6 +413,7 @@ function Splash() {
     });
     return () => {
       if (unlisten) unlisten();
+      previewTimers.forEach(clearTimeout);
     };
   }, [drainQueue]);
 
@@ -368,6 +428,27 @@ function Splash() {
 
   // ── Phase sequencer ───────────────────────────────────────────────────────
   useEffect(() => {
+    // ── Browser-preview: forced phase — jump directly and stay ─────────────
+    // ?phase=welding (etc.) skips auto-advance entirely; scene stays frozen for
+    // unlimited inspection time.  No fake status events are injected either.
+    if (!isTauri && PREVIEW_FORCED_PHASE) {
+      const phaseMap = {
+        "fade-in": PHASE.FADE_IN,
+        "sparks":  PHASE.SPARKS,
+        "welding": PHASE.WELDING,
+        "clank":   PHASE.CLANK,
+        "final":   PHASE.FINAL,
+      };
+      const target = phaseMap[PREVIEW_FORCED_PHASE.toLowerCase()];
+      if (target != null) {
+        setPhase(target);
+        setContentVisible(true);
+        setTitleVisible(true);
+        const tt = setTimeout(() => setTaglineVisible(true), 300);
+        return () => clearTimeout(tt);
+      }
+    }
+
     // Phase 1: Fade-in (0–1.5 s) — background + anvil fade in; sprocket/hammer begin
     const t1 = setTimeout(() => {
       setPhase(PHASE.FADE_IN);
@@ -405,9 +486,13 @@ function Splash() {
       setPhase(PHASE.FINAL);
     }, 9500);
 
-    // Phase 6: Fade-out (10.5 s)
+    // Phase 6: Fade-out (10.5 s) — or loop if ?loop=1 in browser preview
     const t6 = setTimeout(() => {
-      if (!skippedRef.current) {
+      if (skippedRef.current) return;
+      if (!isTauri && PREVIEW_LOOP_MODE && onLoopRestartRef.current) {
+        // Restart the full sequence by remounting the Splash component.
+        onLoopRestartRef.current();
+      } else {
         setPhase(PHASE.FADE_OUT);
         setFadingOut(true);
       }
@@ -515,8 +600,17 @@ function Splash() {
   );
 }
 
+// ── SplashApp: thin wrapper that owns the loop key ───────────────────────
+// When ?loop=1 is active in browser preview, Splash calls onLoopRestart()
+// after FADE_OUT, which increments loopKey and forces a full remount of Splash
+// (resetting all state cleanly without manual teardown).
+function SplashApp() {
+  const [loopKey, setLoopKey] = useState(0);
+  return <Splash key={loopKey} onLoopRestart={() => setLoopKey((k) => k + 1)} />;
+}
+
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <Splash />
+    <SplashApp />
   </StrictMode>
 );
