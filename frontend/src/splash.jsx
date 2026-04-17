@@ -440,7 +440,7 @@ function Splash({ onLoopRestart = null }) {
         "final":   PHASE.FINAL,
       };
       const target = phaseMap[PREVIEW_FORCED_PHASE.toLowerCase()];
-      if (target != null) {
+      if (target !== undefined) {
         setPhase(target);
         setContentVisible(true);
         setTitleVisible(true);
