@@ -44,11 +44,7 @@ const PHASE = {
   FADE_OUT:  6,   // 9.0–10.0 s
 };
 
-// Typing speed (ms per character)
-const CHAR_MS = 40;
-
-// Spark colours
-const SPARK_COLORS = ["#E05D2B", "#FFC131", "#FF8C42", "#FFD966", "#FF6B1A"];
+// Spark colors (60 % orange / 40 % Tauri-gold — set per-spark in makeSpark)
 
 // ── Spark particle generator ─────────────────────────────────────────────
 let sparkId = 0;
@@ -59,10 +55,10 @@ function makeSpark(originX, originY) {
   const speed = 40 + Math.random() * 80;
   const vx = Math.cos(angle) * speed;
   const vy = Math.sin(angle) * speed - (20 + Math.random() * 30); // bias upward
-  const size = 2 + Math.random() * 3;
+  const size = Math.random() < 0.15 ? 4 : 3;
   const duration = 0.4 + Math.random() * 0.6;
   const delay = Math.random() * 0.1;
-  const color = SPARK_COLORS[Math.floor(Math.random() * SPARK_COLORS.length)];
+  const color = Math.random() < 0.6 ? "#E05D2B" : "#FFC131";
   return { id, originX, originY, vx, vy, size, duration, delay, color };
 }
 
@@ -118,9 +114,12 @@ function Splash() {
   // Stable map of phase id → array index, for in-place dedup updates.
   const linesByPhaseRef = useRef({});
 
+  // Progress bar: count phases that have transitioned away from Pending (max 4).
+  const [completedPhaseCount, setCompletedPhaseCount] = useState(0);
+  const completedPhasesRef = useRef(new Set());
+
   // Queue of incoming status events from Rust
   const statusQueueRef = useRef([]);
-  const isTypingRef     = useRef(false);
   const skippedRef      = useRef(false);
   const phaseRef        = useRef(PHASE.INIT);
   const sparkTimerRef   = useRef(null);
@@ -176,13 +175,12 @@ function Splash() {
     } catch { /* silence */ }
   }, []);
 
-  // ── Typewriter engine ────────────────────────────────────────────────────
+  // ── Line-in engine ───────────────────────────────────────────────────────
   // Store typeLineIn in a ref so drainQueue can call it without creating a
   // circular dependency in the useCallback dependency arrays.
   const typeLineInRef = useRef(null);
 
   const drainQueue = useCallback(() => {
-    if (isTypingRef.current) return;
     const next = statusQueueRef.current.shift();
     if (!next) return;
     typeLineInRef.current?.(next);
@@ -194,7 +192,7 @@ function Splash() {
 
     // ── In-place update: phase already has a line ──────────────────────────
     // This happens when Rust sends Pending then Ok/Warn/Error for the same
-    // phase.  Update the prefix/colour without retyping the text.
+    // phase.  Update the prefix/color without re-running the fade-in animation.
     if (phase && linesByPhaseRef.current[phase] !== undefined) {
       const idx = linesByPhaseRef.current[phase];
       setLines((prev) => {
@@ -208,58 +206,26 @@ function Splash() {
         };
         return arr;
       });
-      // Not typing — immediately drain the next queued item.
+      // Track phase completion (Pending → Ok/Warn/Error).
+      if (kind !== "pending" && !completedPhasesRef.current.has(phase)) {
+        completedPhasesRef.current.add(phase);
+        setCompletedPhaseCount((n) => Math.min(n + 1, 4));
+      }
       drainQueue();
       return;
     }
 
-    // ── New phase: append and type the text character by character ─────────
-    isTypingRef.current = true;
+    // ── New phase: append full text immediately; CSS handles the fade-in ───
     const prefix = prefixForKind(kind);
-    const fullText = message;
     const pClass = prefixClass(kind);
     const mClass = msgClass(kind);
 
     setLines((prev) => {
       const newIdx = prev.length;
       if (phase) linesByPhaseRef.current[phase] = newIdx;
-      return [...prev, { phase, prefix, pClass, msg: "", mClass, done: false }];
+      return [...prev, { phase, prefix, pClass, msg: message, mClass, done: true }];
     });
-
-    let charIdx = 0;
-    const advance = () => {
-      if (skippedRef.current) {
-        // Flush remaining characters instantly on skip.
-        setLines((prev) => {
-          const arr = [...prev];
-          arr[arr.length - 1] = { ...arr[arr.length - 1], msg: fullText, done: true };
-          return arr;
-        });
-        isTypingRef.current = false;
-        drainQueue();
-        return;
-      }
-
-      charIdx++;
-      setLines((prev) => {
-        const arr = [...prev];
-        arr[arr.length - 1] = {
-          ...arr[arr.length - 1],
-          msg: fullText.slice(0, charIdx),
-          done: charIdx >= fullText.length,
-        };
-        return arr;
-      });
-
-      if (charIdx < fullText.length) {
-        setTimeout(advance, CHAR_MS);
-      } else {
-        isTypingRef.current = false;
-        drainQueue();
-      }
-    };
-
-    setTimeout(advance, CHAR_MS);
+    drainQueue();
   };
 
   // ── Skip handler ─────────────────────────────────────────────────────────
@@ -405,14 +371,14 @@ function Splash() {
     const t2 = setTimeout(() => {
       setPhase(PHASE.SPARKS);
       setArcVisible(true);
-      startSparks(30);
+      startSparks(18);
       playWeldAudio();
     }, 1000);
 
     // Phase 3: Heavy welding (2 s)
     const t3 = setTimeout(() => {
       setPhase(PHASE.WELDING);
-      startSparks(45);
+      startSparks(27);
       setJitter(true);
     }, 2000);
 
@@ -480,8 +446,11 @@ function Splash() {
       {/* Blueprint grid */}
       <div className={`blueprint-grid${gridVisible ? " visible" : ""}`} />
 
-      {/* Vignette */}
+      {/* Static vignette */}
       <div className="vignette" />
+
+      {/* Vignette pulse — only during WELDING */}
+      {phase === PHASE.WELDING && <div className="welding-vignette" />}
 
       {/* Flash overlay */}
       <div className={`flash-overlay${flash ? " flash" : ""}`} />
@@ -516,9 +485,10 @@ function Splash() {
           {/* Rust logo */}
           <div className={
             "logo-wrapper rust-logo" +
-            (logosIn   ? " slid-in" : "") +
-            (jitter    ? " jitter"  : "") +
-            (clanked   ? " clanked" : "")
+            (logosIn                    ? " slid-in"      : "") +
+            (jitter                     ? " jitter"       : "") +
+            (clanked                    ? " clanked"      : "") +
+            (phase === PHASE.WELDING    ? " welding-pulse": "")
           }>
             <img src={rustLogoUrl} alt="Rust" draggable={false} />
           </div>
@@ -527,7 +497,12 @@ function Splash() {
           <div className="weld-gap">
             {/* Animated arc SVG */}
             <svg
-              className={`weld-arc${arcVisible ? " visible" : ""}${arcSolid ? " solid" : ""}`}
+              className={
+                "weld-arc" +
+                (arcVisible                  ? " visible"       : "") +
+                (arcSolid                    ? " solid"         : "") +
+                (phase === PHASE.WELDING     ? " welding-active": "")
+              }
               viewBox="0 0 36 80"
               xmlns="http://www.w3.org/2000/svg"
             >
@@ -568,9 +543,10 @@ function Splash() {
           {/* Tauri logo */}
           <div className={
             "logo-wrapper tauri-logo" +
-            (logosIn   ? " slid-in" : "") +
-            (jitter    ? " jitter"  : "") +
-            (clanked   ? " clanked" : "")
+            (logosIn                    ? " slid-in"      : "") +
+            (jitter                     ? " jitter"       : "") +
+            (clanked                    ? " clanked"      : "") +
+            (phase === PHASE.WELDING    ? " welding-pulse": "")
           }>
             <img src={tauriLogoUrl} alt="Tauri" draggable={false} />
           </div>
@@ -583,22 +559,19 @@ function Splash() {
 
         {/* Terminal block */}
         <div className="terminal-block">
-          {lines.map((line, i) => {
-            const isLast = i === lines.length - 1;
-            const showCursor = isLast && !line.done && !skippedRef.current;
-            return (
-              <div key={line.phase ?? i} className="terminal-line">
-                <span className={line.pClass}>{line.prefix}</span>
-                <span className={line.mClass}>
-                  {line.msg}
-                  {showCursor && <span className="cursor" />}
-                </span>
-              </div>
-            );
-          })}
+          {lines.map((line, i) => (
+            <div key={line.phase ?? i} className="terminal-line">
+              <span className="terminal-gutter-num" aria-hidden="true">
+                {String(i + 1).padStart(2, '0')}
+              </span>
+              <span className={line.pClass}>{line.prefix}</span>
+              <span className={line.mClass}>{line.msg}</span>
+            </div>
+          ))}
           {/* Cursor on empty terminal (before first event arrives) */}
           {lines.length === 0 && phase >= PHASE.WELDING && (
             <div className="terminal-line">
+              <span className="terminal-gutter-num" aria-hidden="true" />
               <span className="prefix-pending">{">"}</span>
               <span className="msg-pending"><span className="cursor" /></span>
             </div>
@@ -606,9 +579,17 @@ function Splash() {
         </div>
       </div>
 
+      {/* Progress bar — fills 0→4/4 as phases resolve */}
+      <div className={`progress-track${taglineVisible ? " visible" : ""}`}>
+        <div
+          className="progress-fill"
+          style={{ width: `${(completedPhaseCount / 4) * 100}%` }}
+        />
+      </div>
+
       {/* Tagline */}
       <div className={`tagline${taglineVisible ? " visible" : ""}`}>
-        Forged with Rust 🦀 · Powered by Tauri v2
+        Forged with Rust <span className="crab-emoji">🦀</span> · Powered by Tauri v2
       </div>
     </div>
   );

@@ -27,7 +27,7 @@
     linear-gradient(rgba(0, 200, 255, 0.04) 1px, transparent 1px),
     linear-gradient(90deg, rgba(0, 200, 255, 0.04) 1px, transparent 1px);
   background-size: 30px 30px;
-  animation: grid-drift 8s linear infinite;
+  animation: grid-drift 5.6s linear infinite;
   opacity: 0;
   transition: opacity 0.8s ease;
 }
@@ -56,7 +56,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding-top: 38px;
+  padding-top: 30px;
   gap: 0;
   opacity: 0;
   transition: opacity 0.9s ease;
@@ -76,12 +76,12 @@
   justify-content: center;
   gap: 0;
   position: relative;
-  height: 90px;
+  height: 76px;
 }
 
 .logo-wrapper {
-  width: 80px;
-  height: 80px;
+  width: 66px;
+  height: 66px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -89,8 +89,8 @@
 }
 
 .logo-wrapper img {
-  width: 72px;
-  height: 72px;
+  width: 58px;
+  height: 58px;
   object-fit: contain;
 }
 
@@ -131,7 +131,7 @@
 /* ── Weld gap & arc ─────────────────────────────────────────────────────── */
 .weld-gap {
   width: 36px;
-  height: 80px;
+  height: 66px;
   position: relative;
   display: flex;
   align-items: center;
@@ -169,7 +169,7 @@
   box-shadow: 0 0 6px #FFC131, 0 0 12px #E05D2B;
 }
 .weld-line.solidified {
-  height: 64px;
+  height: 52px;
 }
 
 /* ── Flash overlay ───────────────────────────────────────────────────────── */
@@ -226,6 +226,23 @@
   line-height: 1.65;
   color: #9CA3AF;
   min-height: 60px;
+  position: relative;
+}
+
+/* Scanline overlay — CRT vibe; pointer-events: none prevents it from blocking clicks */
+.terminal-block::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 1px,
+    rgba(0, 0, 0, 0.03) 1px,
+    rgba(0, 0, 0, 0.03) 2px
+  );
+  pointer-events: none;
+  z-index: 10;
 }
 
 .terminal-line {
@@ -233,16 +250,29 @@
   align-items: center;
   gap: 6px;
   white-space: nowrap;
+  animation: line-in 150ms ease-out;
 }
 
-.terminal-line .prefix-ok    { color: #4ADE80; }
-.terminal-line .prefix-warn  { color: #E05D2B; }
-.terminal-line .prefix-error { color: #F87171; }
-.terminal-line .prefix-pending { color: #9CA3AF; }
+/* Gutter line number — muted cyan at 60% opacity, separated by 1px vertical rule */
+.terminal-gutter-num {
+  color: rgba(107, 174, 196, 0.6);
+  min-width: 22px;
+  text-align: right;
+  flex-shrink: 0;
+  border-right: 1px solid rgba(107, 174, 196, 0.15);
+  padding-right: 6px;
+  margin-right: 2px;
+  font-variant-numeric: tabular-nums;
+}
 
-.terminal-line .msg-ok    { color: #E4E7EB; }
-.terminal-line .msg-warn  { color: #FFC131; }
-.terminal-line .msg-error { color: #F87171; }
+.terminal-line .prefix-ok      { color: #4ADE80; }
+.terminal-line .prefix-warn    { color: #FFC131; }
+.terminal-line .prefix-error   { color: #F87171; }
+.terminal-line .prefix-pending { color: #6B7280; }
+
+.terminal-line .msg-ok      { color: #E4E7EB; }
+.terminal-line .msg-warn    { color: #E4E7EB; }
+.terminal-line .msg-error   { color: #E4E7EB; }
 .terminal-line .msg-pending { color: #9CA3AF; }
 
 .cursor {
@@ -262,9 +292,9 @@
   right: 0;
   text-align: center;
   font-family: 'Inter', system-ui, sans-serif;
-  font-size: 10px;
+  font-size: 11px;
   color: #4B5563;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.02em;
   padding-bottom: 20px;
   opacity: 0;
   transition: opacity 0.8s ease 1s;
@@ -336,4 +366,83 @@
 @keyframes burst-pulse {
   0%   { transform: scale(1); opacity: 1; }
   100% { transform: scale(2.5); opacity: 0; }
+}
+
+/* ── Line-in animation (replaces typewriter) ─────────────────────────────── */
+@keyframes line-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ── Weld arc slow beat during WELDING ───────────────────────────────────── */
+.weld-arc.visible.welding-active {
+  animation: weld-pulse 0.4s ease-in-out infinite alternate,
+             weld-arc-beat 1.2s ease-in-out infinite;
+}
+
+@keyframes weld-arc-beat {
+  0%, 100% { transform: scale(1);    opacity: 0.85; }
+  50%       { transform: scale(1.1); opacity: 1; }
+}
+
+/* ── Logo glow pulse during WELDING ──────────────────────────────────────── */
+.logo-wrapper.welding-pulse img {
+  animation: logo-weld-glow 1.2s ease-in-out infinite;
+}
+
+@keyframes logo-weld-glow {
+  0%, 100% { filter: drop-shadow(0 0 3px rgba(255, 193, 49, 0.2)); }
+  50%       { filter: drop-shadow(0 0 10px rgba(255, 193, 49, 0.65)); }
+}
+
+/* ── Vignette pulse during WELDING ───────────────────────────────────────── */
+.welding-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center,
+    transparent 40%,
+    rgba(0, 0, 0, 0.5) 100%
+  );
+  pointer-events: none;
+  animation: vignette-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes vignette-pulse {
+  0%, 100% { opacity: 0.2; }
+  50%       { opacity: 0.35; }
+}
+
+/* ── Progress bar ────────────────────────────────────────────────────────── */
+.progress-track {
+  position: absolute;
+  bottom: 42px;
+  left: 24px;
+  right: 24px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.8s ease 1s;
+}
+.progress-track.visible {
+  opacity: 1;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #E05D2B 0%, #FFC131 100%);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 400ms ease-out;
+}
+
+/* ── Crab emoji bob ──────────────────────────────────────────────────────── */
+.crab-emoji {
+  display: inline-block;
+  animation: crab-bob 2s ease-in-out infinite;
+}
+
+@keyframes crab-bob {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-2px); }
 }
