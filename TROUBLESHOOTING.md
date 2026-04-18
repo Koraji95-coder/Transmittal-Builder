@@ -268,3 +268,62 @@ Get-Content "$env:LOCALAPPDATA\R3P Transmittal Builder\updater.log" | Select-Obj
 is launched.  After the installer finishes, users must relaunch the app
 manually from the Start Menu or Desktop shortcut.
 
+
+---
+
+## 10. Dependabot RUSTSEC alerts on `glib 0.18` / `rand 0.7`
+
+**Symptom:** The repository **Security → Dependabot** tab shows two open
+alerts against transitive crates pulled in by Tauri:
+
+- `glib 0.18.x` — RUSTSEC-2024-0429 (`VariantStrIter` unsoundness)
+- `rand 0.7.x`  — soundness issue in the legacy `rand` line
+
+**Cause:** Both crates come in via `gtk-rs 0.18 → tao → tauri-runtime-wry`,
+and only compile when targeting **Linux/GTK**. R3P Transmittal Builder
+ships a Windows-only NSIS installer (see `bundle.targets` in
+`frontend/src-tauri/tauri.conf.json` and the `windows-latest` runner in
+`.github/workflows/release.yml`), so the vulnerable code is never built
+into the binary we distribute.
+
+**Fix:**
+
+1. Future Dependabot PRs/alerts for these two packages are suppressed by
+   `.github/dependabot.yml` (see the `ignore:` block under the `cargo`
+   ecosystem). No action required.
+2. The **existing** open alerts are not auto-closed by `dependabot.yml`;
+   GitHub requires a one-time manual dismissal:
+   - Go to **Security → Dependabot → alert #N**.
+   - Click **Dismiss → Tolerable risk** (or **Vulnerable code is not
+     actually used**).
+   - Reason text: *"Transitive Linux-only dependency via gtk-rs; we only ship
+     Windows NSIS bundles. Will be removed when Tauri upgrades past
+     gtk-rs 0.18."*
+3. Re-evaluate when bumping Tauri to a release that updates gtk-rs past
+   0.18 (then drop the `ignore:` entries in `dependabot.yml`).
+
+---
+
+## 11. Customising the NSIS installer / uninstaller wording
+
+The installer and uninstaller wizard text (page titles, "Installation
+complete" / "Uninstall complete" headers, title-bar captions) is
+overridden via a thin NSIS hook file at
+`frontend/src-tauri/installer/hooks.nsh`, wired in through
+`bundle.windows.nsis.installerHooks` in `tauri.conf.json`.
+
+The hook only `!define`s MUI text strings and sets `Caption` /
+`UninstallCaption`; it does **not** fork Tauri's `installer.nsi.tera`
+template. Things you can change there safely:
+
+- All `MUI_TEXT_*` and `MUI_UNTEXT_*` page titles/subtitles
+- `MUI_INSTFILESPAGE_FINISHHEADER_TEXT/SUBTEXT` (and `UN` variants) —
+  these are the big bold strings on the green-progress-bar page
+- `Caption` / `UninstallCaption` — the title-bar text
+
+Things you **cannot** change without forking the template (intentionally
+out-of-scope for now):
+
+- The OS-drawn dialog frame, min/close buttons, rounded corners
+- The progress-bar colour
+- The presence of the "Show details" button on INSTFILES pages

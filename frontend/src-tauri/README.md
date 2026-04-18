@@ -101,3 +101,34 @@ Active overrides are logged once to the console:
 | `MIN_SPLASH_MS` | 11 000 ms | Minimum display time on first launch / after update |
 | `MIN_SPLASH_MS_SHORT` | 3 200 ms | Minimum display time on subsequent launches |
 | `OFFLINE_EXTRA_MS` | 3 000 ms | Extra hold when the offline-error dialog is about to fire |
+
+---
+
+## Customising the NSIS installer / uninstaller UI
+
+We ship a small NSIS hook file at
+[`installer/hooks.nsh`](./installer/hooks.nsh), referenced by
+[`tauri.conf.json`](./tauri.conf.json) via
+`bundle.windows.nsis.installerHooks`. Tauri's installer template
+`!include`s the file very early — before any MUI page macros and before
+`Name` / `BrandingText` are emitted — so it can:
+
+- Override any `MUI_TEXT_*` / `MUI_UNTEXT_*` page string (Welcome, Finish,
+  INSTFILES headers including the "Installation/Uninstallation complete"
+  green-bar page).
+- Set top-level NSIS attributes such as `Caption` and `UninstallCaption`
+  (the title-bar text).
+- Define the optional `NSIS_HOOK_PRE/POSTINSTALL` and `…UNINSTALL`
+  macros if you ever need to run extra script at those points.
+
+This intentionally avoids forking Tauri's `installer.nsi.tera`, so we
+don't have to keep diffs in sync across Tauri upgrades. The trade-off is
+that anything requiring custom NSIS dialog controls (hiding the
+"Show details" button, recolouring the progress bar, replacing the
+dialog chrome) is **not** doable from `hooks.nsh` — those would require
+a template fork. See `TROUBLESHOOTING.md §11` for the explicit scope.
+
+The companion BMP / SVG branding lives next to the hook file:
+`nsis-header.{svg,bmp}` (150×57) and `nsis-sidebar.{svg,bmp}` (164×314).
+Regenerate the BMPs from the SVG masters with `npm run icons:generate`
+from the `frontend/` directory.
