@@ -357,5 +357,14 @@ resulting binary files along with any SVG master changes.
 
 ---
 
+## Architecture roadmap
+
+Shared scaffolding (UI primitives, installer templates, logging, updater)
+will be extracted into [`kc-framework`](https://github.com/Koraji95-coder/kc-framework)
+and consumed here as a versioned dependency.
+See [docs/framework-extraction/](./docs/framework-extraction/README.md) for the inventory and migration plan.
+
+---
+
 ROOT3POWER ENGINEERING
 
