@@ -11,7 +11,6 @@
  * Chrome sequence (driven by setTimeout in the sequencer useEffect):
  *   t=   50 ms  content fades in
  *   t=  850 ms  progress bar + version meta fade in
- *   t= 8500 ms  clank impact (flash overlay)
  *   t=10500 ms  content fades out
  */
 
@@ -141,7 +140,6 @@ function Splash({ onLoopRestart = null }) {
   const [contentVisible, setContentVisible] = useState(false);
   const [fadingOut, setFadingOut]           = useState(false);
   const [chromeVisible, setChromeVisible]   = useState(false);
-  const [flash, setFlash]                   = useState(false);
   // null = unknown (waiting for Tauri), true = first run (full mode), false = short mode
   const [isFirstRun, setIsFirstRun]         = useState(null);
 
@@ -167,7 +165,6 @@ function Splash({ onLoopRestart = null }) {
   // Queue of incoming status events from Rust
   const statusQueueRef = useRef([]);
   const tauriRef        = useRef(null);
-  const clankImpactTimerRef = useRef(null);
   const onLoopRestartRef = useRef(onLoopRestart);
   useEffect(() => { onLoopRestartRef.current = onLoopRestart; }, [onLoopRestart]);
 
@@ -356,11 +353,6 @@ function Splash({ onLoopRestart = null }) {
     const t1 = setTimeout(() => setContentVisible(true), 50);
     const tChrome = setTimeout(() => setChromeVisible(true), 850);
 
-    const tClank = setTimeout(() => {
-      setFlash(true);
-      setTimeout(() => setFlash(false), 400);
-    }, 8500);
-
     const tFadeOut = setTimeout(() => {
       if (!isTauri && PREVIEW_LOOP_MODE && onLoopRestartRef.current) {
         onLoopRestartRef.current();
@@ -370,8 +362,7 @@ function Splash({ onLoopRestart = null }) {
     }, 10500);
 
     return () => {
-      [t1, tChrome, tClank, tFadeOut].forEach(clearTimeout);
-      if (clankImpactTimerRef.current) clearTimeout(clankImpactTimerRef.current);
+      [t1, tChrome, tFadeOut].forEach(clearTimeout);
     };
   }, []);
 
@@ -386,8 +377,6 @@ function Splash({ onLoopRestart = null }) {
       style={{ WebkitAppRegion: "no-drag" }}
     >
       <div className="vignette" />
-
-      <div className={`flash-overlay${flash ? " flash" : ""}`} />
 
       <div className={contentClass}>
 
