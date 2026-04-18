@@ -22,6 +22,9 @@
     GitHub repository in owner/name format, e.g. "Koraji95-coder/Transmittal-Builder".
 
 .EXAMPLE
+    .\scripts\publish-to-drive.ps1 -Tag v5.0.0
+
+.EXAMPLE
     .\scripts\publish-to-drive.ps1 -Tag v5.0.0 -DrivePath "G:\Shared drives\R3P RESOURCES\APPS\Transmittal Builder" -Repo "Koraji95-coder/Transmittal-Builder"
 #>
 
@@ -30,11 +33,9 @@ param(
     [Parameter(Mandatory)]
     [string]$Tag,
 
-    [Parameter(Mandatory)]
-    [string]$DrivePath,
+    [string]$DrivePath = "G:\Shared drives\R3P RESOURCES\APPS\Transmittal Builder",
 
-    [Parameter(Mandatory)]
-    [string]$Repo
+    [string]$Repo = "Koraji95-coder/Transmittal-Builder"
 )
 
 Set-StrictMode -Version Latest

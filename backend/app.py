@@ -987,8 +987,8 @@ def cleanup_temp_dirs():
 # When the backend is bundled as a standalone executable by PyInstaller
 # and launched by the Tauri Rust shell, this block runs:
 #   1. Reads SIDECAR_BACKEND_PORT env var (set by Rust, as per kc-framework
-#      convention) or falls back to TRANSMITTAL_BACKEND_PORT (legacy), or
-#      picks a free OS port.
+#      convention) or falls back to TRANSMITTAL_BACKEND_PORT (legacy, deprecated).
+#      Picks a free OS port if neither is set.
 #   2. Prints the actual port on stdout so Rust can capture it.
 #   3. Starts uvicorn on that port.
 # In normal development (`uvicorn app:app --port 8000`) this block is
@@ -998,7 +998,20 @@ if __name__ == "__main__":
     import socket
     import uvicorn
 
-    port_env = os.environ.get("SIDECAR_BACKEND_PORT") or os.environ.get("TRANSMITTAL_BACKEND_PORT", "0")
+    _sidecar_port = os.environ.get("SIDECAR_BACKEND_PORT")
+    _legacy_port = os.environ.get("TRANSMITTAL_BACKEND_PORT")
+    if _sidecar_port:
+        port_env = _sidecar_port
+    elif _legacy_port:
+        import warnings
+        warnings.warn(
+            "TRANSMITTAL_BACKEND_PORT is deprecated; use SIDECAR_BACKEND_PORT instead.",
+            DeprecationWarning,
+            stacklevel=1,
+        )
+        port_env = _legacy_port
+    else:
+        port_env = "0"
     try:
         port = int(port_env)
     except ValueError:
