@@ -125,32 +125,37 @@
     <!-- Step 6: outer rim top-edge highlight line -->
     <circle cx="200" cy="180" r="65" fill="none" stroke="#787672" stroke-width="1.2" opacity="0.45"/>
 
-    <!-- ── 16 Teeth ── fill matches sprocket body gradient; tip-highlight overlay -->
+    <!-- ── 16 Teeth ── jagged trapezoidal teeth that protrude beyond the rim.
+         Bases sit at r=58 (just inside body r=65 so they blend smoothly into
+         the rim) and tips reach out to r=76 (11 units of clear protrusion).
+         Base half-angle 7°, tip half-angle 4° → each tooth tapers and the
+         8.5° gap between teeth shows as a deep notch against the dark
+         background, giving the gear an unmistakable jagged silhouette. -->
     <g fill="url(#sprocket-rg)">
-      <path d="M196.3,130.1 L195.2,115.2 L204.8,115.2 L203.7,130.1 Z"/>
-      <path d="M215.6,132.5 L220.3,118.3 L229.3,122.0 L222.5,135.4 Z"/>
-      <path d="M232.6,142.1 L242.4,130.7 L249.3,137.6 L237.9,147.4 Z"/>
-      <path d="M244.6,157.5 L258.0,150.7 L261.7,159.7 L247.5,164.4 Z"/>
-      <path d="M249.9,176.3 L264.8,175.2 L264.8,184.8 L249.9,183.7 Z"/>
-      <path d="M247.5,195.6 L261.7,200.3 L258.0,209.3 L244.6,202.5 Z"/>
-      <path d="M237.9,212.6 L249.3,222.4 L242.4,229.3 L232.6,217.9 Z"/>
-      <path d="M222.5,224.6 L229.3,238.0 L220.3,241.7 L215.6,227.5 Z"/>
-      <path d="M203.7,229.9 L204.8,244.8 L195.2,244.8 L196.3,229.9 Z"/>
-      <path d="M184.4,227.5 L179.7,241.7 L170.7,238.0 L177.5,224.6 Z"/>
-      <path d="M167.4,217.9 L157.6,229.3 L150.7,222.4 L162.1,212.6 Z"/>
-      <path d="M155.4,202.5 L142.0,209.3 L138.3,200.3 L152.5,195.6 Z"/>
-      <path d="M150.1,183.7 L135.2,184.8 L135.2,175.2 L150.1,176.3 Z"/>
-      <path d="M152.5,164.4 L138.3,159.7 L142.0,150.7 L155.4,157.5 Z"/>
-      <path d="M162.1,147.4 L150.7,137.6 L157.6,130.7 L167.4,142.1 Z"/>
-      <path d="M177.5,135.4 L170.7,122.0 L179.7,118.3 L184.4,132.5 Z"/>
+      <path d="M194.7,104.2 L205.3,104.2 L207.1,122.4 L192.9,122.4 Z"/>
+      <path d="M224.1,107.9 L233.9,112.0 L228.6,129.5 L215.5,124.1 Z"/>
+      <path d="M249.9,122.6 L257.4,130.1 L245.7,144.3 L235.7,134.3 Z"/>
+      <path d="M268.0,146.1 L272.1,155.9 L255.9,164.5 L250.5,151.4 Z"/>
+      <path d="M275.8,174.7 L275.8,185.3 L257.6,187.1 L257.6,172.9 Z"/>
+      <path d="M272.1,204.1 L268.0,213.9 L250.5,208.6 L255.9,195.5 Z"/>
+      <path d="M257.4,229.9 L249.9,237.4 L235.7,225.7 L245.7,215.7 Z"/>
+      <path d="M233.9,248.0 L224.1,252.1 L215.5,235.9 L228.6,230.5 Z"/>
+      <path d="M205.3,255.8 L194.7,255.8 L192.9,237.6 L207.1,237.6 Z"/>
+      <path d="M175.9,252.1 L166.1,248.0 L171.4,230.5 L184.5,235.9 Z"/>
+      <path d="M150.1,237.4 L142.6,229.9 L154.3,215.7 L164.3,225.7 Z"/>
+      <path d="M132.0,213.9 L127.9,204.1 L144.1,195.5 L149.5,208.6 Z"/>
+      <path d="M124.2,185.3 L124.2,174.7 L142.4,172.9 L142.4,187.1 Z"/>
+      <path d="M127.9,155.9 L132.0,146.1 L149.5,151.4 L144.1,164.5 Z"/>
+      <path d="M142.6,130.1 L150.1,122.6 L164.3,134.3 L154.3,144.3 Z"/>
+      <path d="M166.1,112.0 L175.9,107.9 L184.5,124.1 L171.4,129.5 Z"/>
     </g>
     <!-- Tooth tip specular overlay (top-facing teeth catch forge light) -->
     <g fill="url(#tooth-tip-rg)">
-      <path d="M196.3,130.1 L195.2,115.2 L204.8,115.2 L203.7,130.1 Z"/>
-      <path d="M215.6,132.5 L220.3,118.3 L229.3,122.0 L222.5,135.4 Z"/>
-      <path d="M232.6,142.1 L242.4,130.7 L249.3,137.6 L237.9,147.4 Z"/>
-      <path d="M177.5,135.4 L170.7,122.0 L179.7,118.3 L184.4,132.5 Z"/>
-      <path d="M162.1,147.4 L150.7,137.6 L157.6,130.7 L167.4,142.1 Z"/>
+      <path d="M194.7,104.2 L205.3,104.2 L207.1,122.4 L192.9,122.4 Z"/>
+      <path d="M224.1,107.9 L233.9,112.0 L228.6,129.5 L215.5,124.1 Z"/>
+      <path d="M249.9,122.6 L257.4,130.1 L245.7,144.3 L235.7,134.3 Z"/>
+      <path d="M166.1,112.0 L175.9,107.9 L184.5,124.1 L171.4,129.5 Z"/>
+      <path d="M142.6,130.1 L150.1,122.6 L164.3,134.3 L154.3,144.3 Z"/>
     </g>
     <!-- Forge-light overlay on teeth removed: the duplicated layer muddied
          tooth edges as the gear rotates. Tooth-tip specular above is enough. -->
@@ -187,23 +192,23 @@
     <circle cx="198" cy="178" r="2.5" fill="#303030" opacity="0.6"/>
 
     <!-- ── 16 Tooth-glow circles (CSS-animated, opacity=0 by default) ── -->
-    <!-- tooth-glow-0 = 12 o'clock = strike point (200, 115.2) -->
-    <circle class="tooth-glow-0"  cx="200.0" cy="115.2" r="4" fill="#C8823A" opacity="0"/>
-    <circle class="tooth-glow-1"  cx="224.8" cy="120.2" r="4" fill="#C8823A" opacity="0"/>
-    <circle class="tooth-glow-2"  cx="245.9" cy="134.2" r="4" fill="#C8823A" opacity="0"/>
-    <circle class="tooth-glow-3"  cx="259.9" cy="155.2" r="4" fill="#C8823A" opacity="0"/>
-    <circle class="tooth-glow-4"  cx="264.8" cy="180.0" r="4" fill="#C8823A" opacity="0"/>
-    <circle class="tooth-glow-5"  cx="259.9" cy="204.8" r="4" fill="#C8823A" opacity="0"/>
-    <circle class="tooth-glow-6"  cx="245.9" cy="225.8" r="4" fill="#C8823A" opacity="0"/>
-    <circle class="tooth-glow-7"  cx="224.8" cy="239.9" r="4" fill="#C8823A" opacity="0"/>
-    <circle class="tooth-glow-8"  cx="200.0" cy="244.8" r="4" fill="#C8823A" opacity="0"/>
-    <circle class="tooth-glow-9"  cx="175.2" cy="239.9" r="4" fill="#C8823A" opacity="0"/>
-    <circle class="tooth-glow-10" cx="154.1" cy="225.8" r="4" fill="#C8823A" opacity="0"/>
-    <circle class="tooth-glow-11" cx="140.1" cy="204.8" r="4" fill="#C8823A" opacity="0"/>
-    <circle class="tooth-glow-12" cx="135.2" cy="180.0" r="4" fill="#C8823A" opacity="0"/>
-    <circle class="tooth-glow-13" cx="140.1" cy="155.2" r="4" fill="#C8823A" opacity="0"/>
-    <circle class="tooth-glow-14" cx="154.1" cy="134.2" r="4" fill="#C8823A" opacity="0"/>
-    <circle class="tooth-glow-15" cx="175.2" cy="120.2" r="4" fill="#C8823A" opacity="0"/>
+    <!-- tooth-glow-0 = 12 o'clock = strike point at new tooth tip (200, 104.2) -->
+    <circle class="tooth-glow-0"  cx="200.0" cy="104.2" r="4" fill="#C8823A" opacity="0"/>
+    <circle class="tooth-glow-1"  cx="229.1" cy="109.8" r="4" fill="#C8823A" opacity="0"/>
+    <circle class="tooth-glow-2"  cx="253.7" cy="126.3" r="4" fill="#C8823A" opacity="0"/>
+    <circle class="tooth-glow-3"  cx="270.2" cy="150.9" r="4" fill="#C8823A" opacity="0"/>
+    <circle class="tooth-glow-4"  cx="276.0" cy="180.0" r="4" fill="#C8823A" opacity="0"/>
+    <circle class="tooth-glow-5"  cx="270.2" cy="209.1" r="4" fill="#C8823A" opacity="0"/>
+    <circle class="tooth-glow-6"  cx="253.7" cy="233.7" r="4" fill="#C8823A" opacity="0"/>
+    <circle class="tooth-glow-7"  cx="229.1" cy="250.2" r="4" fill="#C8823A" opacity="0"/>
+    <circle class="tooth-glow-8"  cx="200.0" cy="256.0" r="4" fill="#C8823A" opacity="0"/>
+    <circle class="tooth-glow-9"  cx="170.9" cy="250.2" r="4" fill="#C8823A" opacity="0"/>
+    <circle class="tooth-glow-10" cx="146.3" cy="233.7" r="4" fill="#C8823A" opacity="0"/>
+    <circle class="tooth-glow-11" cx="129.8" cy="209.1" r="4" fill="#C8823A" opacity="0"/>
+    <circle class="tooth-glow-12" cx="124.0" cy="180.0" r="4" fill="#C8823A" opacity="0"/>
+    <circle class="tooth-glow-13" cx="129.8" cy="150.9" r="4" fill="#C8823A" opacity="0"/>
+    <circle class="tooth-glow-14" cx="146.3" cy="126.3" r="4" fill="#C8823A" opacity="0"/>
+    <circle class="tooth-glow-15" cx="170.9" cy="109.8" r="4" fill="#C8823A" opacity="0"/>
 
   </g><!-- end #sprocket -->
 
@@ -277,22 +282,23 @@
   </g><!-- end #hammer -->
 
   <!-- ══ Impact flash (circle at strike point, CSS animated) ══ -->
+  <!-- Centered between new top tooth tip (y≈104) and hammer face bottom (y≈115). -->
   <circle id="impact-flash"
-    cx="200" cy="115"
+    cx="200" cy="110"
     r="28"
     fill="url(#impact-rg)"
     opacity="0"/>
 
   <!-- ══ Sparks (pre-placed at strike point, fly outward via CSS) ══ -->
-  <circle class="spark-1"  cx="200" cy="115" r="2.5" fill="#ffcc66" opacity="0"/>
-  <circle class="spark-2"  cx="200" cy="115" r="2.0" fill="#C8823A" opacity="0"/>
-  <circle class="spark-3"  cx="200" cy="115" r="3.0" fill="#ffcc66" opacity="0"/>
-  <circle class="spark-4"  cx="200" cy="115" r="1.8" fill="#fff5e0" opacity="0"/>
-  <circle class="spark-5"  cx="200" cy="115" r="2.2" fill="#C8823A" opacity="0"/>
-  <circle class="spark-6"  cx="200" cy="115" r="2.8" fill="#ffcc66" opacity="0"/>
-  <circle class="spark-7"  cx="200" cy="115" r="1.5" fill="#fff5e0" opacity="0"/>
-  <circle class="spark-8"  cx="200" cy="115" r="2.0" fill="#C8823A" opacity="0"/>
-  <circle class="spark-9"  cx="200" cy="115" r="2.5" fill="#ffcc66" opacity="0"/>
-  <circle class="spark-10" cx="200" cy="115" r="1.8" fill="#fff5e0" opacity="0"/>
+  <circle class="spark-1"  cx="200" cy="110" r="2.5" fill="#ffcc66" opacity="0"/>
+  <circle class="spark-2"  cx="200" cy="110" r="2.0" fill="#C8823A" opacity="0"/>
+  <circle class="spark-3"  cx="200" cy="110" r="3.0" fill="#ffcc66" opacity="0"/>
+  <circle class="spark-4"  cx="200" cy="110" r="1.8" fill="#fff5e0" opacity="0"/>
+  <circle class="spark-5"  cx="200" cy="110" r="2.2" fill="#C8823A" opacity="0"/>
+  <circle class="spark-6"  cx="200" cy="110" r="2.8" fill="#ffcc66" opacity="0"/>
+  <circle class="spark-7"  cx="200" cy="110" r="1.5" fill="#fff5e0" opacity="0"/>
+  <circle class="spark-8"  cx="200" cy="110" r="2.0" fill="#C8823A" opacity="0"/>
+  <circle class="spark-9"  cx="200" cy="110" r="2.5" fill="#ffcc66" opacity="0"/>
+  <circle class="spark-10" cx="200" cy="110" r="1.8" fill="#fff5e0" opacity="0"/>
 
 </svg>

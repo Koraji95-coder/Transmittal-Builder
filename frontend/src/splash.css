@@ -48,19 +48,6 @@
   z-index: 0;
 }
 
-/* ── Flash overlay ───────────────────────────────────────────────────────── */
-.flash-overlay {
-  position: absolute;
-  inset: 0;
-  background: #fff5e0;
-  opacity: 0;
-  pointer-events: none;
-  z-index: 10;
-}
-.flash-overlay.flash {
-  animation: clank-flash 0.4s ease-out forwards;
-}
-
 /* ── Main content area ──────────────────────────────────────────────────── */
 .splash-content {
   position: relative;
@@ -384,11 +371,6 @@
 }
 
 /* ── Keyframes (global) ──────────────────────────────────────────────────── */
-@keyframes clank-flash {
-  0%   { opacity: 0.8; }
-  100% { opacity: 0; }
-}
-
 @keyframes blink {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0; }
