@@ -1,5 +1,5 @@
 // frontend/src-tauri/src/splash.rs
-//
+
 // Splash screen integration.
 //
 // Provides:
@@ -198,7 +198,7 @@ pub fn splash_fade_complete(app: tauri::AppHandle) {
 // ── Helpers ───────────────────────────────────────────────────────────────
 
 /// Emit a `splash://status` event to all windows (including the splash).
-b pub fn emit_status(app: &AppHandle, phase: &str, message: &str, kind: StatusKind) {
+pub fn emit_status(app: &AppHandle, phase: &str, message: &str, kind: StatusKind) {
     let payload = StatusPayload {
         phase: phase.to_string(),
         message: message.to_string(),
