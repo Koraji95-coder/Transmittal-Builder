@@ -29,3 +29,7 @@ RELEASE_NOTES.md
 
 # MCP runtime artifacts
 .mcp/
+
+# Root-level node_modules (ad-hoc tool installs)
+node_modules/
+package-lock.json

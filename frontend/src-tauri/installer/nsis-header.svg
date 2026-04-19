@@ -22,14 +22,14 @@
   <!-- Background -->
   <rect width="150" height="57" fill="url(#hdr-bg)"/>
 
-  <!-- Anvil-T monogram mark (~36×36, left-aligned) -->
-  <!-- Rounded-square forge background -->
-  <rect x="7" y="8" width="36" height="36" rx="6"
+  <!-- Anvil-T monogram mark (~36×36, centered) -->
+  <!-- Rounded-square forge background centered in 150×57 canvas -->
+  <rect x="57" y="10.5" width="36" height="36" rx="6"
         fill="#1a1210" stroke="#C8823A" stroke-width="1.2"/>
 
-  <!-- Anvil-T letterform inside, scaled to fit 36×36 box (origin 7,8) -->
+  <!-- Anvil-T letterform inside, scaled to fit 36×36 box (origin 57,10.5) -->
   <!-- scale = 36/512 ≈ 0.0703 -->
-  <g filter="url(#hdr-outline)" transform="translate(7,8) scale(0.0703125)" fill="#C8823A">
+  <g filter="url(#hdr-outline)" transform="translate(57,10.5) scale(0.0703125)" fill="#C8823A">
     <rect x="86" y="104" width="340" height="86" rx="10"/>
     <rect x="226" y="190" width="60" height="170"/>
     <path d="M 72,360 H 412 L 446,374 L 446,396 L 412,410 H 72 Z"/>
@@ -37,14 +37,5 @@
     <path d="M 196,424 H 316 L 304,452 H 208 Z"/>
     <rect x="128" y="452" width="256" height="32" rx="4"/>
   </g>
-
-  <!-- Separator line -->
-  <line x1="51" y1="10" x2="51" y2="47" stroke="rgba(200,130,58,0.2)" stroke-width="1"/>
-
-  <!-- "TRANSMITTAL BUILDER" wordmark -->
-  <text x="59" y="28" dominant-baseline="middle"
-    font-family="Inter, system-ui, sans-serif" font-size="9" font-weight="600"
-    letter-spacing="0.08em"
-    fill="rgba(156,163,175,0.85)">TRANSMITTAL BUILDER</text>
 
 </svg>
