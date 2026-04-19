@@ -188,12 +188,12 @@ pub fn cmd_check_for_update() -> CheckUpdateResult {
         return CheckUpdateResult::none();
     }
 
-    // 7. Synthesize installer path: prefer the `installer` field from latest.json;
-    //    fall back to the conventional filename pattern when absent.
-    let installer_filename = if !latest.installer.is_empty() {
-        latest.installer.clone()
-    } else {
+    // 7. Synthesize installer path: use the `installer` field from latest.json
+    //    when present; fall back to the conventional filename pattern when absent.
+    let installer_filename = if latest.installer.is_empty() {
         format!("Transmittal.Builder_{}_x64-setup.exe", latest.version)
+    } else {
+        latest.installer.clone()
     };
     let installer_path = manifest_folder.join(&installer_filename);
 

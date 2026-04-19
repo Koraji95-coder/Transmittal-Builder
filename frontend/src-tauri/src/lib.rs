@@ -358,7 +358,7 @@ fn startup_sequence(app: tauri::AppHandle, child_arc: Arc<Mutex<Option<Child>>>)
     // atomically — no "brown background gap" between the two.
     //
     // Safety net: if the frontend never invokes `splash_fade_complete` (e.g.
-    // JS error, window minimised mid-fade), we sleep for the expected
+    // JS error, window minimized mid-fade), we sleep for the expected
     // hold + fade duration and then perform the same show/close from Rust.
     // Both paths are idempotent.
     //
