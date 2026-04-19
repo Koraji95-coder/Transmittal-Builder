@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useId } from "react";
 import { initBackendUrl, refreshBackendUrl, getBackendUrl } from "./api/backend.js";
 import { APP_VERSION } from "./version.js";
+import UpdateModal from "./components/UpdateModal.jsx";
 
 /* ═══════════════════════════════════════════════════════════════
    TRANSMITTAL BUILDER — Wired Frontend
@@ -665,6 +666,26 @@ export default function App(){
   const[projectRoot,setProjectRoot]=useState(null);             // project root folder name for breadcrumb
   const[confirmDialog,setConfirmDialog]=useState(null);       // {title,message,onConfirm} or null
 
+  // ─── Auto-updater state ────────────────────────────────────
+  // updateInfo: { version, installerPath, notes } | null
+  // updateDismissed: session-only flag; resets on next launch
+  const[updateInfo,setUpdateInfo]=useState(null);
+  const[updateDismissed,setUpdateDismissed]=useState(false);
+
+  // Check for updates on mount (Tauri only). Errors degrade silently.
+  useEffect(()=>{
+    if(!isTauri)return;
+    import("@tauri-apps/api/core").then(({invoke})=>{
+      invoke("check_for_update").then(result=>{
+        if(result?.updateAvailable){
+          setUpdateInfo(result);
+        }
+      }).catch(e=>{
+        console.warn("[updater] check_for_update failed:",e);
+      });
+    }).catch(()=>{});
+  },[]);
+
   const showToast=(message,type="info",duration=5000)=>{setToast({message,type,duration:type!=="loading"?duration:0});if(type!=="loading")setTimeout(()=>setToast(null),duration);};
 
   // Load saved contacts
@@ -1043,5 +1064,14 @@ export default function App(){
     </div>
     <Toast message={toast?.message} type={toast?.type} onDismiss={()=>setToast(null)} duration={toast?.duration||5000}/>
     <ConfirmDialog open={!!confirmDialog} title={confirmDialog?.title} message={confirmDialog?.message} onConfirm={confirmDialog?.onConfirm} onCancel={confirmDialog?.onCancel||(()=>setConfirmDialog(null))} confirmLabel={confirmDialog?.confirmLabel} cancelLabel={confirmDialog?.cancelLabel}/>
+    {updateInfo&&!updateDismissed&&(
+      <UpdateModal
+        currentVersion={APP_VERSION}
+        availableVersion={updateInfo.version}
+        installerPath={updateInfo.installerPath}
+        notes={updateInfo.notes}
+        onDismiss={()=>setUpdateDismissed(true)}
+      />
+    )}
   </>;
 }

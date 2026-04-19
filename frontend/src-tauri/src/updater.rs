@@ -1,17 +1,18 @@
 // frontend/src-tauri/src/updater.rs
 //
-// Shared-drive update check and force-update flow.
+// G:\-based update check for internal distribution.
 //
-// On every launch (release builds only) the app:
-//   1. Checks whether the shared drive path is reachable.
-//   2. Reads `latest.json` from that path.
-//   3. Compares the remote `version` field to the version baked into the
-//      binary (`CARGO_PKG_VERSION` via Cargo.toml).
-//   4. Returns an `UpdateCheckResult` that the caller acts on.
-//
-// The shared-drive path defaults to:
-//   G:\Shared drives\R3P RESOURCES\APPS\Transmittal Builder
-// Override for dev/testing by setting `TRANSMITTAL_UPDATE_PATH`.
+// On every app launch the React app invokes `check_for_update` (a Tauri
+// command defined in lib.rs) which calls `cmd_check_for_update()` here.
+// The flow:
+//   1. Read / lazy-create `%APPDATA%\Transmittal Builder\update-source.json`.
+//   2. If `enabled: false`, return `{ updateAvailable: false }` immediately.
+//   3. Read `latest.json` from the configured `manifestPath`.
+//      Missing / unreachable → return false, log to console (silent fail).
+//   4. Parse manifest.  Compare versions with the `semver` crate.
+//   5. Synthesize installer path from the manifest folder + version.
+//   6. Verify installer exists on disk.
+//   7. Return `{ updateAvailable: true, version, installerPath, notes }`.
 //
 // File logging (release builds only):
 //   %LOCALAPPDATA%\Transmittal Builder\updater.log
@@ -24,44 +25,199 @@
 #![cfg_attr(debug_assertions, allow(dead_code))]
 
 use std::fs;
-use std::io::{Read, Write};
+use std::io::Write;
 use std::path::PathBuf;
 
 use semver::Version;
-use serde::Deserialize;
-use tauri::AppHandle;
-use tauri::Emitter;
+use serde::{Deserialize, Serialize};
 
-const DEFAULT_UPDATE_PATH: &str = r"G:\Shared drives\R3P RESOURCES\APPS\Transmittal Builder";
+const DEFAULT_MANIFEST_PATH: &str =
+    r"G:\Shared drives\R3P RESOURCES\APPS\Transmittal Builder\latest.json";
 
-/// Contents of `latest.json` on the shared drive.
-#[derive(Deserialize, Clone, Debug)]
-#[allow(dead_code)]
-pub struct LatestJson {
-    pub version: String,
-    pub installer: String,
+// ── Update-source config ──────────────────────────────────────────────────
+
+/// Per-machine config stored in `%APPDATA%\Transmittal Builder\update-source.json`.
+/// Lazy-created on first launch with the default G:\ path.
+/// Lets admins redirect the update source or disable updates without rebuilding.
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateSourceConfig {
+    manifest_path: String,
+    enabled: bool,
+}
+
+impl Default for UpdateSourceConfig {
+    fn default() -> Self {
+        Self {
+            manifest_path: DEFAULT_MANIFEST_PATH.to_string(),
+            enabled: true,
+        }
+    }
+}
+
+/// Return `%APPDATA%\Transmittal Builder\` on Windows or
+/// `$HOME/.config/Transmittal Builder/` on other platforms.
+fn get_config_dir() -> Option<PathBuf> {
+    #[cfg(windows)]
+    {
+        std::env::var("APPDATA")
+            .ok()
+            .map(|s| PathBuf::from(s).join("Transmittal Builder"))
+    }
+    #[cfg(not(windows))]
+    {
+        std::env::var("HOME")
+            .ok()
+            .map(|s| PathBuf::from(s).join(".config").join("Transmittal Builder"))
+    }
+}
+
+/// Read `update-source.json`, creating it with defaults if absent or unreadable.
+fn read_or_create_source_config() -> UpdateSourceConfig {
+    let Some(dir) = get_config_dir() else {
+        return UpdateSourceConfig::default();
+    };
+    let path = dir.join("update-source.json");
+
+    // Try to read and parse existing file.
+    if path.exists() {
+        if let Ok(content) = fs::read_to_string(&path) {
+            if let Ok(cfg) = serde_json::from_str::<UpdateSourceConfig>(&content) {
+                return cfg;
+            }
+        }
+    }
+
+    // Write the default config so users can easily find and edit it.
+    let cfg = UpdateSourceConfig::default();
+    let _ = fs::create_dir_all(&dir);
+    if let Ok(json) = serde_json::to_string_pretty(&cfg) {
+        let _ = fs::write(&path, format!("{json}\n"));
+    }
+    cfg
+}
+
+// ── Command-facing check result ───────────────────────────────────────────
+
+/// Returned by the `check_for_update` Tauri command.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CheckUpdateResult {
+    pub update_available: bool,
+    pub version: Option<String>,
+    pub installer_path: Option<String>,
     pub notes: Option<String>,
-    pub mandatory: Option<bool>,
 }
 
-/// Result of the update check.
-pub enum UpdateCheckResult {
-    /// Shared drive is not reachable (offline / VPN down).
-    Offline { path: PathBuf },
-    /// Installed version matches or exceeds the remote version.
-    UpToDate,
-    /// A newer version is available on the shared drive.
-    UpdateAvailable {
-        latest: LatestJson,
-        update_path: PathBuf,
-    },
+impl CheckUpdateResult {
+    fn none() -> Self {
+        Self {
+            update_available: false,
+            version: None,
+            installer_path: None,
+            notes: None,
+        }
+    }
 }
 
-/// Return the configured update path (env var override or default G:\ path).
-pub fn get_update_path() -> PathBuf {
-    std::env::var("TRANSMITTAL_UPDATE_PATH")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from(DEFAULT_UPDATE_PATH))
+/// Check whether a newer version is available on the shared drive.
+///
+/// Called by the `check_for_update` Tauri command from the React app on mount.
+/// All errors degrade silently — returns `CheckUpdateResult { update_available: false }`
+/// and logs to console rather than showing a user-facing error.
+pub fn cmd_check_for_update() -> CheckUpdateResult {
+    // 1. Read / create update-source.json.
+    let config = read_or_create_source_config();
+
+    // 2. Bail if disabled.
+    if !config.enabled {
+        println!("[updater] Update check disabled via update-source.json");
+        return CheckUpdateResult::none();
+    }
+
+    // 3. Resolve manifest path and its containing folder.
+    let manifest_path = PathBuf::from(&config.manifest_path);
+    let manifest_folder = match manifest_path.parent() {
+        Some(p) => p.to_path_buf(),
+        None => {
+            eprintln!(
+                "[updater] Cannot determine manifest folder from: {}",
+                manifest_path.display()
+            );
+            return CheckUpdateResult::none();
+        }
+    };
+
+    // 4. Read the manifest — missing / unreachable → silent fail.
+    let content = match fs::read_to_string(&manifest_path) {
+        Ok(c) => c,
+        Err(e) => {
+            println!(
+                "[updater] Cannot read manifest at {}: {e}",
+                manifest_path.display()
+            );
+            return CheckUpdateResult::none();
+        }
+    };
+
+    // 5. Parse manifest.
+    let latest: LatestJson = match serde_json::from_str(&content) {
+        Ok(j) => j,
+        Err(e) => {
+            println!("[updater] Cannot parse latest.json: {e}");
+            return CheckUpdateResult::none();
+        }
+    };
+
+    // 6. Compare versions using semver so "6.0.10 > 6.0.9" works correctly.
+    let current_str = env!("CARGO_PKG_VERSION");
+    let current = Version::parse(current_str).unwrap_or_else(|_| Version::new(0, 0, 0));
+    let remote = match Version::parse(&latest.version) {
+        Ok(v) => v,
+        Err(e) => {
+            println!(
+                "[updater] Invalid version in latest.json ('{}'): {e}",
+                latest.version
+            );
+            return CheckUpdateResult::none();
+        }
+    };
+
+    if remote <= current {
+        println!("[updater] Up to date ({current_str})");
+        return CheckUpdateResult::none();
+    }
+
+    // 7. Synthesize installer path: use the `installer` field from latest.json
+    //    when present; fall back to the conventional filename pattern when absent.
+    let installer_filename = if latest.installer.is_empty() {
+        format!("Transmittal.Builder_{}_x64-setup.exe", latest.version)
+    } else {
+        latest.installer.clone()
+    };
+    let installer_path = manifest_folder.join(&installer_filename);
+
+    // 8. Verify the installer actually exists on disk.
+    if !installer_path.exists() {
+        println!(
+            "[updater] Installer not found at: {}",
+            installer_path.display()
+        );
+        return CheckUpdateResult::none();
+    }
+
+    println!(
+        "[updater] Update available: {current_str} → {} ({})",
+        latest.version,
+        installer_path.display()
+    );
+
+    CheckUpdateResult {
+        update_available: true,
+        version: Some(latest.version),
+        installer_path: Some(installer_path.to_string_lossy().into_owned()),
+        notes: latest.notes,
+    }
 }
 
 // ── File logging ──────────────────────────────────────────────────────────
@@ -90,7 +246,6 @@ pub fn log_updater(msg: &str) {
         .join("Transmittal Builder")
         .join("updater.log");
 
-    // Ensure the directory exists (it should already, but be safe).
     if let Some(parent) = log_path.parent() {
         let _ = fs::create_dir_all(parent);
     }
@@ -108,163 +263,13 @@ pub fn log_updater(msg: &str) {
 #[cfg(debug_assertions)]
 pub fn log_updater(_msg: &str) {}
 
-// ── Update check ──────────────────────────────────────────────────────────
-
-/// Check whether an update is available.
-///
-/// This is intentionally synchronous — it runs in the setup hook before the
-/// main window is shown, so blocking briefly is acceptable.
-pub fn check_for_update() -> UpdateCheckResult {
-    let update_path = get_update_path();
-    log_updater(&format!("Update path: {}", update_path.display()));
-
-    // Hard-block if the path does not exist (offline / Drive not mounted).
-    if !update_path.exists() {
-        log_updater("latest.json: path not reachable (offline)");
-        return UpdateCheckResult::Offline { path: update_path };
-    }
-
-    let latest_json_path = update_path.join("latest.json");
-    let content = match fs::read_to_string(&latest_json_path) {
-        Ok(c) => c,
-        Err(e) => {
-            log_updater(&format!("latest.json read error: {e}"));
-            eprintln!("[updater] Cannot read latest.json: {e}");
-            return UpdateCheckResult::Offline { path: update_path };
-        }
-    };
-    log_updater("latest.json: read OK");
-
-    let latest: LatestJson = match serde_json::from_str(&content) {
-        Ok(j) => j,
-        Err(e) => {
-            log_updater(&format!("latest.json parse error: {e}"));
-            eprintln!("[updater] Cannot parse latest.json: {e}");
-            // Treat a malformed manifest as up-to-date so the app still opens.
-            return UpdateCheckResult::UpToDate;
-        }
-    };
-
-    let current_str = env!("CARGO_PKG_VERSION");
-    let current = Version::parse(current_str).unwrap_or_else(|_| Version::new(0, 0, 0));
-    let remote = match Version::parse(&latest.version) {
-        Ok(v) => v,
-        Err(e) => {
-            log_updater(&format!(
-                "Invalid version in latest.json ('{}'): {e}",
-                latest.version
-            ));
-            eprintln!(
-                "[updater] Invalid version in latest.json ('{}'): {e}",
-                latest.version
-            );
-            return UpdateCheckResult::UpToDate;
-        }
-    };
-
-    log_updater(&format!(
-        "Version check: installed={current_str}, remote={}",
-        latest.version
-    ));
-
-    if remote > current {
-        log_updater(&format!(
-            "Update available: {current_str} → {}",
-            latest.version
-        ));
-        println!(
-            "[updater] Update available: {current_str} → {}",
-            latest.version
-        );
-        UpdateCheckResult::UpdateAvailable {
-            latest,
-            update_path,
-        }
-    } else {
-        log_updater(&format!("Up to date ({current_str})"));
-        println!("[updater] Up to date ({current_str})");
-        UpdateCheckResult::UpToDate
-    }
-}
-
-/// Copy the installer from the shared drive to `%TEMP%\transmittal-update.exe`,
-/// emitting `update_progress` events to the Tauri frontend as bytes are copied.
-///
-/// Returns the path to the copied installer.
-pub fn copy_installer_with_progress(
-    update_path: &PathBuf,
-    installer_name: &str,
-    app: &AppHandle,
-) -> Result<PathBuf, String> {
-    use std::time::Instant;
-
-    let src = update_path.join(installer_name);
-    let temp_dir = std::env::var("TEMP")
-        .or_else(|_| std::env::var("TMP"))
-        .unwrap_or_else(|_| String::from("C:\\Temp"));
-    let dest = PathBuf::from(&temp_dir).join("transmittal-update.exe");
-
-    let total_bytes = fs::metadata(&src).map(|m| m.len()).unwrap_or(0);
-    log_updater(&format!(
-        "Copy: src={}, dest={}, total_bytes={total_bytes}",
-        src.display(),
-        dest.display(),
-    ));
-
-    let mut reader = fs::File::open(&src)
-        .map_err(|e| format!("Cannot open installer '{installer_name}': {e}"))?;
-    let mut writer =
-        fs::File::create(&dest).map_err(|e| format!("Cannot create '{dest:?}': {e}"))?;
-
-    let mut buf = [0u8; 65_536];
-    let mut copied: u64 = 0;
-    let mut last_logged_pct: i64 = -1;
-    let copy_start = Instant::now();
-
-    loop {
-        let n = reader
-            .read(&mut buf)
-            .map_err(|e| format!("Read error: {e}"))?;
-        if n == 0 {
-            break;
-        }
-        writer
-            .write_all(&buf[..n])
-            .map_err(|e| format!("Write error: {e}"))?;
-        copied += n as u64;
-
-        let percent = if total_bytes > 0 {
-            (copied as f64 / total_bytes as f64 * 100.0).min(100.0)
-        } else {
-            0.0
-        };
-
-        let _ = app.emit(
-            "update_progress",
-            serde_json::json!({
-                "bytes_copied": copied,
-                "total_bytes":  total_bytes,
-                "percent":      percent,
-            }),
-        );
-
-        // Log progress every ~5%.
-        let pct_bucket = (percent as i64) / 5 * 5;
-        if pct_bucket > last_logged_pct {
-            last_logged_pct = pct_bucket;
-            log_updater(&format!("Copy progress: {pct_bucket}% ({copied}/{total_bytes} bytes)"));
-        }
-    }
-
-    let elapsed_ms = copy_start.elapsed().as_millis();
-    log_updater(&format!(
-        "Copy complete: {copied} bytes in {elapsed_ms} ms → {}",
-        dest.display(),
-    ));
-    println!(
-        "[updater] Installer copied to '{}' ({} bytes)",
-        dest.display(),
-        copied
-    );
-    Ok(dest)
+/// Contents of `latest.json` on the shared drive.
+#[derive(Deserialize, Clone, Debug)]
+#[allow(dead_code)]
+pub struct LatestJson {
+    pub version: String,
+    #[serde(default)]
+    pub installer: String,
+    pub notes: Option<String>,
+    pub mandatory: Option<bool>,
 }
