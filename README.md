@@ -113,7 +113,7 @@ The copy-intent abbreviation (IFP, IFC, IFA, etc.) is derived from the single se
 ```bash
 # Terminal 1 — Python backend
 cd backend
-export NODE_AUTH_TOKEN=ghp_yourTokenHere   # needed only for first install
+export NODE_AUTH_TOKEN=ghp_yourTokenHere   # required for pip install from private repo
 pip install -r requirements.txt
 uvicorn app:app --reload --port 8000
 
