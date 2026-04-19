@@ -117,18 +117,33 @@ It will:
 
 ### Step 5 — Publish to shared drive
 
-On a machine with **Google Drive for Desktop** running and the R3P drive mounted:
+After CI completes and the GitHub Release is created:
 
-```powershell
-.\scripts\publish-to-drive.ps1 -Tag v4.0.0
-```
+1. **Download both release assets** from the GitHub Release page
+   (e.g. `https://github.com/chamber-19/transmittal-builder/releases/tag/v6.1.0`):
+   - `Transmittal.Builder_<version>_x64-setup.exe`
+   - `latest.json`
 
-This script:
-- Downloads the release assets from GitHub.
-- Archives the previous installer to `archive\` on the drive.
-- Copies the new installer and `latest.json` into place.
+2. **Open the shared drive folder** in File Explorer:
+   ```
+   G:\Shared drives\R3P RESOURCES\APPS\Transmittal Builder\
+   ```
 
-After this step, every user who opens the app will be prompted to update.
+3. **Archive the previous installer** (safety net — keep for ~2 weeks):
+   - Create an `archive\` sub-folder if it doesn't exist.
+   - Move the old `Transmittal.Builder_*.exe` into `archive\`.
+
+4. **Copy the new files** into the folder, replacing the existing `latest.json`:
+   - `Transmittal.Builder_<version>_x64-setup.exe`
+   - `latest.json`
+
+The folder should now contain only one installer `.exe` plus the updated
+`latest.json`.  Within ~24 hours every user who launches the app will see
+the **Update Available** prompt.
+
+> **Rollback:** To revert, copy the old installer back from `archive\`
+> and edit `latest.json` to set `"version"` back to the previous good
+> version.  See `docs/AUTO_UPDATER.md` for details.
 
 ---
 

@@ -6,15 +6,13 @@
 //   2. Background thread runs the setup sequence while emitting
 //      `splash://status` events that drive the splash terminal animation:
 //        a. Spawn the PyInstaller sidecar (or Python dev-server fallback).
-//        b. Check shared-drive reachability  → "Mounting shared drive".
-//        c. Run the version check            → "Checking for updates".
+//        b. Emit "Mounting shared drive" → Ok  (informational only).
+//        c. Emit "Checking for updates" → Ok  (deferred to React on mount).
 //   3. The thread waits until at least 11 s have elapsed so the full
 //      animation plays before the transition.
-//   4. The splash closes and either the main window or the updater window
-//      is shown, depending on the update check result.
-//
-// In debug builds the update / shared-drive check is skipped so local
-// development works without a network drive.
+//   4. The splash closes and the main window opens. The React app then
+//      invokes `check_for_update` on mount and shows the UpdateModal if
+//      a newer version is found on the shared drive.
 
 mod sidecar;
 mod splash;
@@ -22,12 +20,11 @@ mod updater;
 
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use tauri::{Emitter, Listener, Manager};
-use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+use tauri::{Emitter, Manager};
 
 // ── Backend state ─────────────────────────────────────────────────────────
 
@@ -173,18 +170,52 @@ fn find_backend_dir() -> Option<PathBuf> {
     None
 }
 
-// ── Update outcome (internal) ─────────────────────────────────────────────
+// ── Tauri commands: update check / apply ──────────────────────────────────
 
-#[allow(dead_code)]
-enum UpdateOutcome {
-    UpToDate,
-    UpdateAvailable {
-        latest: updater::LatestJson,
-        update_path: PathBuf,
-    },
-    Offline {
-        path: PathBuf,
-    },
+/// Check whether a newer version is available on the shared drive.
+///
+/// Returns `{ updateAvailable: false }` on any error or when up-to-date.
+/// Returns `{ updateAvailable: true, version, installerPath, notes }` when
+/// a newer installer is found on the G:\ shared drive.
+///
+/// All failures degrade silently — no user-facing error popup is shown.
+#[tauri::command]
+fn check_for_update() -> updater::CheckUpdateResult {
+    updater::cmd_check_for_update()
+}
+
+/// Spawn the NSIS installer silently (`/S`) and exit the current process so
+/// that all locked files are released before the installer overwrites them.
+///
+/// The React caller should display an "Installing update…" message for ~2-3 s
+/// before invoking this command so the transition does not feel like a crash.
+#[tauri::command]
+fn apply_update(app: tauri::AppHandle, installer_path: String) {
+    updater::log_updater(&format!("apply_update: spawning '{installer_path}'"));
+
+    let mut cmd = std::process::Command::new(&installer_path);
+    cmd.arg("/S");
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        // DETACHED_PROCESS — let the installer outlive the parent process.
+        cmd.creation_flags(0x0000_0008);
+    }
+
+    match cmd.spawn() {
+        Ok(child) => {
+            updater::log_updater(&format!(
+                "Installer launched (PID {}) — exiting",
+                child.id()
+            ));
+            app.exit(0);
+        }
+        Err(e) => {
+            updater::log_updater(&format!("Failed to launch installer: {e}"));
+            eprintln!("[updater] Failed to launch installer '{installer_path}': {e}");
+        }
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -198,6 +229,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_backend_url,
             peek_subfolders,
+            check_for_update,
+            apply_update,
             splash::splash_is_first_run,
             splash::splash_ready,
             splash::splash_fade_complete,
@@ -244,9 +277,6 @@ const MIN_SPLASH_MS: u64 = 13_000;
 /// splash.css) changes, this constant should be updated to remain in sync.
 const MIN_SPLASH_MS_SHORT: u64 = 3_200;
 
-/// Extra hold (ms) for the offline error state before the dialog fires.
-const OFFLINE_EXTRA_MS: u64 = 3_000;
-
 fn startup_sequence(app: tauri::AppHandle, child_arc: Arc<Mutex<Option<Child>>>) {
     let start = Instant::now();
 
@@ -289,267 +319,72 @@ fn startup_sequence(app: tauri::AppHandle, child_arc: Arc<Mutex<Option<Child>>>)
         *state.url.lock().unwrap() = backend_url;
     }
 
-    // ── 2. Update check ───────────────────────────────────────────────────
-    let outcome: UpdateOutcome;
+    // ── 2. Shared drive (informational; actual check deferred to React) ───
+    // The update check now runs client-side via `invoke('check_for_update')`
+    // after the main window opens.  Errors degrade silently — no forced exit.
+    splash::emit_status(&app, "mount", "Mounting shared drive", splash::StatusKind::Pending);
+    if hold_ms > 0 { thread::sleep(Duration::from_millis(hold_ms)); }
+    splash::emit_status(&app, "mount", "Mounting shared drive", splash::StatusKind::Ok);
+    if hold_ms > 0 { thread::sleep(Duration::from_millis(hold_ms)); }
 
-    #[cfg(not(debug_assertions))]
-    {
-        outcome = run_update_check_with_status(&app, hold_ms);
-    }
-    #[cfg(debug_assertions)]
-    {
-        // Dev mode: skip the actual network check; emit fake Ok statuses.
-        splash::emit_status(&app, "mount", "Mounting shared drive", splash::StatusKind::Pending);
-        if hold_ms > 0 { thread::sleep(Duration::from_millis(hold_ms)); }
-        splash::emit_status(&app, "mount", "Mounting shared drive", splash::StatusKind::Ok);
-        if hold_ms > 0 { thread::sleep(Duration::from_millis(hold_ms)); }
-        splash::emit_status(&app, "updates", "Checking for updates", splash::StatusKind::Pending);
-        if hold_ms > 0 { thread::sleep(Duration::from_millis(hold_ms)); }
-        splash::emit_status(&app, "updates", "Checking for updates", splash::StatusKind::Ok);
-        if hold_ms > 0 { thread::sleep(Duration::from_millis(hold_ms)); }
-        outcome = UpdateOutcome::UpToDate;
-    }
+    // ── 3. Update check status (deferred; emit Ok immediately) ───────────
+    splash::emit_status(&app, "updates", "Checking for updates", splash::StatusKind::Pending);
+    if hold_ms > 0 { thread::sleep(Duration::from_millis(hold_ms)); }
+    splash::emit_status(&app, "updates", "Checking for updates", splash::StatusKind::Ok);
+    if hold_ms > 0 { thread::sleep(Duration::from_millis(hold_ms)); }
 
-    // ── 3. Final status line ──────────────────────────────────────────────
-    let extra_hold_ms: u64 = match &outcome {
-        UpdateOutcome::Offline { .. } => {
-            splash::emit_status(
-                &app,
-                "final",
-                "Cannot reach shared drive",
-                splash::StatusKind::Error,
-            );
-            OFFLINE_EXTRA_MS + hold_ms
-        }
-        UpdateOutcome::UpdateAvailable { .. } => {
-            splash::emit_status(
-                &app,
-                "final",
-                "Update detected, loading updater\u{2026}",
-                splash::StatusKind::Warn,
-            );
-            hold_ms
-        }
-        UpdateOutcome::UpToDate => {
-            splash::emit_status(&app, "final", "Ready", splash::StatusKind::Ok);
-            // Small pause so the UI has a guaranteed beat to render the "Ready"
-            // line before the startup_sequence proceeds to the MIN_SPLASH_MS wait.
-            thread::sleep(Duration::from_millis(200));
-            hold_ms
-        }
-    };
+    // ── 4. Final status ────────────────────────────────────────────────────
+    splash::emit_status(&app, "final", "Ready", splash::StatusKind::Ok);
+    // Small pause so the UI has a guaranteed beat to render "Ready".
+    thread::sleep(Duration::from_millis(200));
 
-    // ── 4. Minimum display duration ───────────────────────────────────────
-    // Pick the appropriate minimum based on whether this is a first/update run.
+    // ── 5. Minimum display duration ────────────────────────────────────────
     let is_first = app
         .try_state::<splash::SplashState>()
         .map(|s| s.first_run())
         .unwrap_or(true);
     let min_ms = if is_first { MIN_SPLASH_MS } else { MIN_SPLASH_MS_SHORT };
-    let target_ms = min_ms + extra_hold_ms;
     let elapsed = start.elapsed().as_millis() as u64;
-
-    if elapsed < target_ms {
-        let remaining = target_ms - elapsed;
-        thread::sleep(Duration::from_millis(remaining));
+    if elapsed < min_ms {
+        thread::sleep(Duration::from_millis(min_ms - elapsed));
     }
 
-    // ── 5. Transition ─────────────────────────────────────────────────────
-    match outcome {
-        UpdateOutcome::Offline { path } => {
-            splash::close_splash(&app);
-            app.dialog()
-                .message(format!(
-                    "Cannot reach shared drive at `{}`.\n\
-                     Connect to the network (Drive for Desktop must be \
-                     running) and try again.",
-                    path.display()
-                ))
-                .title("Connection Required")
-                .kind(MessageDialogKind::Error)
-                .blocking_show();
-            app.exit(1);
-        }
+    // ── 6. Transition to main window ──────────────────────────────────────
+    //
+    // Emit `splash://fade-now` so the splash JS holds the success state for
+    // FADE_HOLD_MS, then cross-fades the whole `.splash-root` to opacity 0
+    // over FADE_DURATION_MS.  The splash invokes `splash_fade_complete` from
+    // `transitionend`, which shows the main window and closes the splash
+    // atomically — no "brown background gap" between the two.
+    //
+    // Safety net: if the frontend never invokes `splash_fade_complete` (e.g.
+    // JS error, window minimised mid-fade), we sleep for the expected
+    // hold + fade duration and then perform the same show/close from Rust.
+    // Both paths are idempotent.
+    //
+    // The constants below must stay in sync with the matching
+    // FADE_HOLD_MS / FADE_DURATION_MS in frontend/src/splash.jsx.
+    const FADE_HOLD_MS:     u64 = 800;
+    const FADE_DURATION_MS: u64 = 1000;
+    const FADE_SAFETY_MS:   u64 = 400;
 
-        UpdateOutcome::UpdateAvailable {
-            latest,
-            update_path,
-        } => {
-            updater::log_updater(&format!(
-                "Update available: {} → {} (path: {})",
-                env!("CARGO_PKG_VERSION"),
-                latest.version,
-                update_path.display(),
-            ));
-
-            // 1. Register the 'updater_ready' listener BEFORE scheduling the
-            //    window show so we never miss the event if React mounts fast.
-            let (ready_tx, ready_rx) = mpsc::channel::<()>();
-            let _ = app.once("updater_ready", move |_| {
-                // If the receiver was dropped we've already timed out; ignore.
-                let _ = ready_tx.send(());
-            });
-
-            // 2. Marshal all window show / hide operations onto the Tauri
-            //    main thread.  Calling WebviewWindow::show() or close() from
-            //    a background thread deadlocks the Windows event loop in
-            //    release builds.
-            let app_for_ui = app.clone();
-            let _ = app.run_on_main_thread(move || {
-                if let Some(updater_win) = app_for_ui.get_webview_window("updater") {
-                    let _ = updater_win.show();
-                }
-                splash::close_splash(&app_for_ui);
-            });
-
-            // 3. Wait for the React bundle to mount and register its event
-            //    listeners (up to 2 s; fall through immediately on timeout).
-            let _ = ready_rx.recv_timeout(Duration::from_secs(2));
-            let updater_shown_at = Instant::now();
-
-            // 4. Emit update_info now that React listeners are registered.
-            let _ = app.emit(
-                "update_info",
-                serde_json::json!({
-                    "version": latest.version,
-                    "notes":   latest.notes,
-                }),
-            );
-
-            // 5. Copy installer on this worker thread (app.emit is
-            //    thread-safe so progress events reach the updater window).
-            updater::log_updater(&format!(
-                "Copy start: installer={}, dest=%TEMP%\\transmittal-update.exe",
-                latest.installer,
-            ));
-            match updater::copy_installer_with_progress(&update_path, &latest.installer, &app) {
-                Ok(dest_path) => {
-                    // 6. Enforce ≥1.5 s of visible updater display so users
-                    //    can read the version/notes and see the progress bar.
-                    let min_display = Duration::from_millis(1_500);
-                    let elapsed = updater_shown_at.elapsed();
-                    if elapsed < min_display {
-                        thread::sleep(min_display - elapsed);
-                    }
-
-                    updater::log_updater(&format!(
-                        "Launching installer: {}",
-                        dest_path.display()
-                    ));
-                    let mut cmd = Command::new(&dest_path);
-                    cmd.args(["/PASSIVE", "/NORESTART"]);
-                    #[cfg(windows)]
-                    {
-                        use std::os::windows::process::CommandExt;
-                        cmd.creation_flags(0x0000_0008); // DETACHED_PROCESS
-                    }
-                    match cmd.spawn() {
-                        Ok(child) => {
-                            updater::log_updater(&format!(
-                                "Installer launched (PID {}) -- exiting",
-                                child.id()
-                            ));
-                            app.exit(0);
-                        }
-                        Err(e) => {
-                            updater::log_updater(&format!(
-                                "Failed to launch installer: {e}"
-                            ));
-                            app.exit(1);
-                        }
-                    }
-                }
-                Err(e) => {
-                    updater::log_updater(&format!("Copy failed: {e}"));
-                    app.exit(1);
-                }
-            }
-        }
-
-        UpdateOutcome::UpToDate => {
-            // Trigger the splash fade-out → main-window cross-fade.
-            //
-            // Sequence:
-            //   1. Emit `splash://fade-now` so the splash JS holds the
-            //      success state for FADE_HOLD_MS, then cross-fades the
-            //      whole `.splash-root` to opacity 0 over FADE_DURATION_MS.
-            //   2. The splash invokes `splash_fade_complete` from
-            //      `transitionend`, which shows the main window and
-            //      closes the splash atomically — no "brown background
-            //      gap" between the two.
-            //   3. As a safety net (in case the frontend never invokes the
-            //      command — e.g. JS error, window minimized mid-fade), we
-            //      sleep for the expected hold + fade duration and then
-            //      perform the same show/close from Rust. Both paths are
-            //      idempotent.
-            //
-            // The constants below must stay in sync with the matching
-            // FADE_HOLD_MS / FADE_DURATION_MS in frontend/src/splash.jsx.
-            const FADE_HOLD_MS:     u64 = 800;
-            const FADE_DURATION_MS: u64 = 1000;
-            const FADE_SAFETY_MS:   u64 = 400;
-
-            if let Err(e) = app.emit("splash://fade-now", ()) {
-                eprintln!("[splash] emit splash://fade-now failed: {e}");
-            }
-
-            thread::sleep(Duration::from_millis(
-                FADE_HOLD_MS + FADE_DURATION_MS + FADE_SAFETY_MS,
-            ));
-
-            // Safety net: idempotent if the frontend already invoked
-            // splash_fade_complete from `transitionend`.
-            let app_for_ui = app.clone();
-            let _ = app.run_on_main_thread(move || {
-                if let Some(main_win) = app_for_ui.get_webview_window("main") {
-                    let _ = main_win.show();
-                }
-                splash::close_splash(&app_for_ui);
-            });
-        }
+    if let Err(e) = app.emit("splash://fade-now", ()) {
+        eprintln!("[splash] emit splash://fade-now failed: {e}");
     }
-}
 
-// ── Update check with status emission ─────────────────────────────────────
+    thread::sleep(Duration::from_millis(
+        FADE_HOLD_MS + FADE_DURATION_MS + FADE_SAFETY_MS,
+    ));
 
-#[cfg(not(debug_assertions))]
-fn run_update_check_with_status(app: &tauri::AppHandle, hold_ms: u64) -> UpdateOutcome {
-    // Step A: check drive reachability.
-    splash::emit_status(app, "mount", "Mounting shared drive", splash::StatusKind::Pending);
-    if hold_ms > 0 { thread::sleep(Duration::from_millis(hold_ms)); }
-    let update_path = updater::get_update_path();
-    if !update_path.exists() {
-        splash::emit_status(app, "mount", "Mounting shared drive", splash::StatusKind::Error);
-        return UpdateOutcome::Offline { path: update_path };
-    }
-    splash::emit_status(app, "mount", "Mounting shared drive", splash::StatusKind::Ok);
-    if hold_ms > 0 { thread::sleep(Duration::from_millis(hold_ms)); }
-
-    // Step B: version comparison.
-    splash::emit_status(app, "updates", "Checking for updates", splash::StatusKind::Pending);
-    if hold_ms > 0 { thread::sleep(Duration::from_millis(hold_ms)); }
-    match updater::check_for_update() {
-        updater::UpdateCheckResult::Offline { path } => {
-            splash::emit_status(app, "updates", "Checking for updates", splash::StatusKind::Error);
-            UpdateOutcome::Offline { path }
+    // Safety net: idempotent if the frontend already invoked
+    // splash_fade_complete from `transitionend`.
+    let app_for_ui = app.clone();
+    let _ = app.run_on_main_thread(move || {
+        if let Some(main_win) = app_for_ui.get_webview_window("main") {
+            let _ = main_win.show();
         }
-        updater::UpdateCheckResult::UpdateAvailable {
-            latest,
-            update_path,
-        } => {
-            splash::emit_status(app, "updates", "Checking for updates", splash::StatusKind::Warn);
-            if hold_ms > 0 { thread::sleep(Duration::from_millis(hold_ms)); }
-            UpdateOutcome::UpdateAvailable {
-                latest,
-                update_path,
-            }
-        }
-        updater::UpdateCheckResult::UpToDate => {
-            splash::emit_status(app, "updates", "Checking for updates", splash::StatusKind::Ok);
-            if hold_ms > 0 { thread::sleep(Duration::from_millis(hold_ms)); }
-            UpdateOutcome::UpToDate
-        }
-    }
+        splash::close_splash(&app_for_ui);
+    });
 }
 
 // ── Backend spawning ──────────────────────────────────────────────────────
