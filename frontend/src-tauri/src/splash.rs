@@ -24,6 +24,7 @@ use tauri::{AppHandle, Emitter, Manager};
 
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "lowercase")]
+#[allow(dead_code)] // Warn/Error variants reserved for future emit_status callers
 pub enum StatusKind {
     Pending,
     Ok,
@@ -83,7 +84,7 @@ pub fn splash_first_launch_after_update() -> bool {
     if let Ok(val) = std::env::var("TRANSMITTAL_SPLASH_FORCE_FRESH") {
         let v = val.to_ascii_lowercase();
         if v == "1" || v == "true" || v == "yes" {
-            eprintln!("[splash] TRANSMITTAL_SPLASH_FORCE_FRESH set — forcing first-run mode");
+            eprintln!([splash] TRANSMITTAL_SPLASH_FORCE_FRESH set — forcing first-run mode);
             return true;
         }
     }
@@ -204,7 +205,7 @@ pub fn emit_status(app: &AppHandle, phase: &str, message: &str, kind: StatusKind
         kind,
     };
     if let Err(e) = app.emit("splash://status", payload) {
-        eprintln!("[splash] emit_status failed: {e}");
+        eprintln!([splash] emit_status failed: {e});
     }
 }
 
@@ -212,7 +213,7 @@ pub fn emit_status(app: &AppHandle, phase: &str, message: &str, kind: StatusKind
 pub fn close_splash(app: &AppHandle) {
     if let Some(win) = app.get_webview_window("splash") {
         if let Err(e) = win.close() {
-            eprintln!("[splash] close_splash failed: {e}");
+            eprintln!([splash] close_splash failed: {e});
         }
     }
 }
