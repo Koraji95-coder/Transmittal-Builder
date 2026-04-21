@@ -30,7 +30,7 @@ product lineup.
 | Repo | Role | Consumes |
 |---|---|---|
 | [`kc-framework`](https://github.com/Koraji95-coder/kc-framework) | Shared UI kit, installer templates, common Python utilities, auth/license, logging, updater hooks, IPC helpers | — |
-| [`Transmittal-Builder`](https://github.com/Koraji95-coder/Transmittal-Builder) | Transmittal generation tool | `kc-framework` |
+| [`transmittal-builder`](https://github.com/chamber-19/transmittal-builder) | Transmittal generation tool | `kc-framework` |
 | [`Drawing-List-Manager`](https://github.com/Koraji95-coder/Drawing-List-Manager) | Drawing list tool | `kc-framework` |
 | `kc-suite` *(future)* | Meta-installer that bundles selected tools | `kc-framework`, tool repos |
 
@@ -166,5 +166,5 @@ assess the impact at a glance.
 Be respectful and constructive in all interactions.
 
 For questions, bug reports, or feature requests, open an
-[issue on GitHub](https://github.com/Koraji95-coder/Transmittal-Builder/issues).
+[issue on GitHub](https://github.com/chamber-19/transmittal-builder/issues).
 The maintainer will respond as time allows.
