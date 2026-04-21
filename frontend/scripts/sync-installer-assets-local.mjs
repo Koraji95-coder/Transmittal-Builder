@@ -88,11 +88,12 @@ for (const filename of ART_ASSETS) {
     continue;
   }
 
-  // Idempotency: skip if dest is up-to-date (same size + mtime not newer than src)
+  // Idempotency: skip if dest is strictly newer than src (same-mtime → re-copy
+  // to be safe against sub-second updates within filesystem timestamp granularity).
   if (existsSync(dest)) {
     const srcStat = statSync(src);
     const destStat = statSync(dest);
-    if (srcStat.size === destStat.size && srcStat.mtimeMs <= destStat.mtimeMs) {
+    if (srcStat.size === destStat.size && srcStat.mtimeMs < destStat.mtimeMs) {
       skipped++;
       continue;
     }

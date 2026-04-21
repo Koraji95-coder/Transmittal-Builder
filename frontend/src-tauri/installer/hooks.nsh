@@ -102,6 +102,10 @@ UninstallCaption "${PRODUCTNAME} — Uninstaller"
 ; Section and Function contexts, unlike the `File` directive which requires
 ; Section context and embeds data at NSIS compile time.
 !macro NSIS_HOOK_POSTINSTALL
+  ; Promote the updater shim from resources/ to $INSTDIR so desktop-toolkit's
+  ; Rust updater can find it at current_exe().parent() / "desktop-toolkit-updater.exe".
+  ; Guard with IfFileExists so a misconfigured build fails gracefully rather than silently.
+  IfFileExists "$INSTDIR\resources\desktop-toolkit-updater.exe" +1 +2
   CopyFiles /SILENT "$INSTDIR\resources\desktop-toolkit-updater.exe" "$INSTDIR\desktop-toolkit-updater.exe"
 !macroend
 
