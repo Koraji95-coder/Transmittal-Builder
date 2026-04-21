@@ -57,7 +57,7 @@ clone of `Transmittal-Builder`, then push that filtered history into
 `kc-framework`.
 
 ```bash
-# Clone Transmittal-Builder into a staging directory
+# Clone transmittal-builder into a staging directory
 git clone https://github.com/chamber-19/transmittal-builder.git kc-framework-staging
 cd kc-framework-staging
 
