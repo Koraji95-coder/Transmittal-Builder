@@ -99,7 +99,7 @@ git push && git push --tags
 ### Step 4 — Wait for CI
 
 The `.github/workflows/release.yml` workflow triggers on the tag push.
-Monitor it at `https://github.com/Koraji95-coder/Transmittal-Builder/actions`.
+Monitor it at `https://github.com/chamber-19/transmittal-builder/actions`.
 
 It will:
 1. Build the PyInstaller sidecar on Windows.

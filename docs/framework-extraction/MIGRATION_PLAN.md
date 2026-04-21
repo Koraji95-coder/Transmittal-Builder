@@ -17,7 +17,7 @@ independent ways:
 - **Tag:** `v5.0.0` — immutable snapshot of the pre-extraction code.
 - **Branch:** `legacy/standalone-v1` — protected (`legacy/**` ruleset
   blocks force-push and deletion); can receive emergency hotfixes via PR.
-- **GitHub Release:** https://github.com/Koraji95-coder/Transmittal-Builder/releases/tag/v5.0.0
+- **GitHub Release:** https://github.com/chamber-19/transmittal-builder/releases/tag/v5.0.0
   with the signed Windows installer
   (`R3P.Transmittal.Builder_5.0.0_x64-setup.exe`) attached.
 
@@ -57,8 +57,8 @@ clone of `Transmittal-Builder`, then push that filtered history into
 `kc-framework`.
 
 ```bash
-# Clone Transmittal-Builder into a staging directory
-git clone https://github.com/Koraji95-coder/Transmittal-Builder.git kc-framework-staging
+# Clone transmittal-builder into a staging directory
+git clone https://github.com/chamber-19/transmittal-builder.git kc-framework-staging
 cd kc-framework-staging
 
 # Keep only the framework files (every path listed in INVENTORY.md)
