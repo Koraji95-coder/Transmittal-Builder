@@ -79,7 +79,7 @@ jobs:
             $resp = Invoke-WebRequest -Uri "https://npm.pkg.github.com/@chamber-19/desktop-toolkit" -Headers $headers -UseBasicParsing -ErrorAction Stop
             Write-Host "✓ GitHub Packages auth OK (HTTP $($resp.StatusCode))"
           } catch {
-            Write-Host "::error::Cannot authenticate to GitHub Packages for @chamber-19/desktop-toolkit."
+            Write-Host "::error::Cannot authenticate to GitHub Packages for @chamber-19/desktop-toolkit. Error: $($_.Exception.Message)"
             Write-Host "::error::Ensure this repo is granted access at https://github.com/orgs/chamber-19/packages/npm/desktop-toolkit/settings (Manage Actions access)."
             throw
           }
