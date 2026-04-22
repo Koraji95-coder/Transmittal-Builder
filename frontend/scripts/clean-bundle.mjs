@@ -10,10 +10,11 @@
  * directly.
  */
 import { rmSync, existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 
 const bundleDir = resolve(
-  new URL(".", import.meta.url).pathname,
+  fileURLToPath(new URL(".", import.meta.url)),
   "..",
   "src-tauri",
   "target",

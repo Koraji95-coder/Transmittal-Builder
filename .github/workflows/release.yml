@@ -176,7 +176,7 @@ jobs:
 
           $escapedVersion = [regex]::Escape($version)
           $versionedInstallers = $allInstallers |
-            Where-Object { $_.Name -match "(^|[^0-9])$escapedVersion([^0-9]|$)" } |
+            Where-Object { $_.Name -match "_$escapedVersion[_\-]" } |
             Sort-Object LastWriteTimeUtc -Descending
 
           if ($versionedInstallers) {
