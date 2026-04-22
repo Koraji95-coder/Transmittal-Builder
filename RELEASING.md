@@ -123,7 +123,7 @@ It will:
 After CI completes and the GitHub Release is created:
 
 1. **Download both release assets** from the GitHub Release page
-   (e.g. `https://github.com/chamber-19/transmittal-builder/releases/tag/v6.2.3`):
+   (e.g. `https://github.com/chamber-19/transmittal-builder/releases/tag/v6.2.4`):
    - `Transmittal.Builder_<version>_x64-setup.exe`
    - `latest.json`
 

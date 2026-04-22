@@ -9,6 +9,19 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [6.2.4] — 2026-04-22
+
+### Fixed
+
+- **NSIS installer title bar now resolves the app name correctly.**
+  The local `hooks.nsh` override now uses the runtime `$(^Name)` token
+  instead of `${PRODUCTNAME}`, which Tauri includes too early for direct
+  caption expansion.
+- **Installer branding no longer regresses to stale packaged BMP text.**
+  The local prebuild sync now trusts the SVG masters and regenerates the
+  NSIS BMPs on every build instead of copying pre-rendered BMPs from the
+  upstream package.
+
 ## [6.2.3] — 2026-04-22
 
 ### Changed
