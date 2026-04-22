@@ -123,7 +123,7 @@ It will:
 After CI completes and the GitHub Release is created:
 
 1. **Download both release assets** from the GitHub Release page
-   (e.g. `https://github.com/chamber-19/transmittal-builder/releases/tag/v6.1.0`):
+   (e.g. `https://github.com/chamber-19/transmittal-builder/releases/tag/v6.2.3`):
    - `Transmittal.Builder_<version>_x64-setup.exe`
    - `latest.json`
 
@@ -145,6 +145,10 @@ The folder should now contain only one installer `.exe` plus the updated
 `latest.json`.  Within ~24 hours every user who launches the app will see
 the **Update Available** prompt.
 
+> **Note:** `publish-to-drive.ps1` now reads `latest.json.installer` to pick
+> the installer filename — if that file isn't in the downloaded assets, the
+> script aborts with a clear error message listing available executables.
+>
 > **Rollback:** To revert, copy the old installer back from `archive\`
 > and edit `latest.json` to set `"version"` back to the previous good
 > version.  See `docs/AUTO_UPDATER.md` for details.
@@ -222,7 +226,7 @@ If a release has a critical bug:
 `frontend/src-tauri/installer/hooks.nsh` is a **TB-local checked-in file** and
 is intentionally _not_ overwritten by the prebuild sync script.
 
-### The upstream bug (desktop-toolkit v2.2.4)
+### The upstream bug (desktop-toolkit v2.2.4 – fixed in v2.2.6)
 
 The upstream `@chamber-19/desktop-toolkit` v2.2.4 `hooks.nsh` contains:
 

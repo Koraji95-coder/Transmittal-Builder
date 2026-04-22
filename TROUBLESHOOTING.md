@@ -297,7 +297,15 @@ manually from the Start Menu or Desktop shortcut.
 
 ---
 
-## 10. Dependabot RUSTSEC alerts on `glib 0.18` / `rand 0.7`
+## 10. Newly-released installer launches an older version of the app
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Newly-released installer launches an older version of the app | Either (a) `release.yml` selected a stale `.exe` from the cached `target/release/bundle/nsis` dir using `Select-Object -First 1`, or (b) `publish-to-drive.ps1` did the same on the consumer side | Both bugs were fixed in TB v6.2.3. Ensure you're on ≥ v6.2.3 of both `release.yml` and `scripts/publish-to-drive.ps1`. The release workflow now wipes the bundle dir before `tauri build` and filters by `${{ github.ref_name }}`; the publish script now reads `latest.json.installer`. |
+
+---
+
+## 11. Dependabot RUSTSEC alerts on `glib 0.18` / `rand 0.7`
 
 **Symptom:** The repository **Security → Dependabot** tab shows two open
 alerts against transitive crates pulled in by Tauri:
@@ -330,7 +338,7 @@ into the binary we distribute.
 
 ---
 
-## 11. Customising the NSIS installer / uninstaller wording
+## 12. Customising the NSIS installer / uninstaller wording
 
 The installer and uninstaller wizard text (page titles, "Installation
 complete" / "Uninstall complete" headers, title-bar captions) is

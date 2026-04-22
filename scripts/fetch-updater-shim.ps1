@@ -18,7 +18,7 @@ $ErrorActionPreference = "Stop"
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $DestPath = Join-Path $RepoRoot "frontend\src-tauri\desktop-toolkit-updater.exe"
 $TmpCloneDir = Join-Path $env:TEMP "dtk-updater-shim-src"
-$DesktopToolkitTag = "v2.2.4"
+$DesktopToolkitTag = "v2.2.6"
 
 Write-Host "[fetch-updater-shim] Building desktop-toolkit-updater.exe from source..."
 
