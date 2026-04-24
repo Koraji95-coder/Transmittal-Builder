@@ -53,6 +53,31 @@ input,select,textarea{font-family:inherit;font-size:inherit}
 
 let _id=0;const uid=()=>`_${++_id}_${Date.now()}`;
 
+// ─── Filename parsing + sort helpers ────────────────────────
+const _DOC_ID_RE=/(?:R3P[-–—]\d+[-–—]E\d+[-–—]\d+)/i;
+function extractDocMeta(filename){
+  const base=filename.replace(/\.[^.]+$/,"").replace(/^.*[/\\]/,"");
+  const m=_DOC_ID_RE.exec(base);
+  if(!m){return{doc_no:"",desc:base.trim(),rev:""};}
+  const rawDoc=m[0];
+  const docNo=rawDoc.replace(/[–—]/g,"-").toUpperCase().replace(/^R3P-\d+-/,"");
+  const remainder=base.slice(m.index+m[0].length).replace(/^[\s\-_–—:;|]+/,"");
+  return{doc_no:docNo,desc:remainder.trim(),rev:""};
+}
+const docKey=(docNo,desc)=>(docNo+"|"+desc).toLowerCase();
+const _sortCollator=new Intl.Collator(undefined,{numeric:true,sensitivity:"base"});
+function sortDocsAndPdfs(docs,pdfs){
+  const sorted=[...docs].sort((a,b)=>
+    _sortCollator.compare(a.docNo||a.desc||"\uFFFF",b.docNo||b.desc||"\uFFFF"));
+  const order=new Map(sorted.map((d,i)=>[docKey(d.docNo,d.desc),i]));
+  const sortedPdfs=[...pdfs].sort((a,b)=>{
+    const ma=extractDocMeta(a.name),mb=extractDocMeta(b.name);
+    return (order.get(docKey(ma.doc_no,ma.desc))??1e9)
+          -(order.get(docKey(mb.doc_no,mb.desc))??1e9);
+  });
+  return{sortedDocs:sorted,sortedPdfs};
+}
+
 // ─── Primitives ──────────────────────────────────────────────
 const SL=({children,mono,sub})=><div style={{marginBottom:sub?"6px":"14px"}}><span style={{fontSize:sub?"10px":"11px",fontWeight:600,fontFamily:mono?T.fM:T.fB,letterSpacing:"0.08em",textTransform:"uppercase",color:sub?T.t3:T.acc}}>{children}</span></div>;
 
@@ -296,6 +321,7 @@ export default function App(){
 
   // ─── Smart file router ───────────────────────────────────
   const onFileDrop=useCallback(files=>{
+    const newPdfs=[];
     for(const f of files){
       const ext=f.name.split(".").pop().toLowerCase();
       if(ext==="docx"){
@@ -305,11 +331,18 @@ export default function App(){
         setIndexFile(f);
         parseIndex(f);
       }else if(ext==="pdf"){
-        setPdfFiles(prev=>{
-          if(prev.some(p=>p.name===f.name))return prev;
-          return[...prev,f];
-        });
+        newPdfs.push(f);
       }
+    }
+    if(newPdfs.length>0){
+      setPdfFiles(prev=>{
+        const toAdd=newPdfs.filter(f=>!prev.some(p=>p.name===f.name));
+        const combined=[...prev,...toAdd];
+        return combined.sort((a,b)=>{
+          const ma=extractDocMeta(a.name),mb=extractDocMeta(b.name);
+          return _sortCollator.compare(ma.doc_no||ma.desc||"\uFFFF",mb.doc_no||mb.desc||"\uFFFF");
+        });
+      });
     }
   },[parseIndex]);
 
@@ -322,6 +355,7 @@ export default function App(){
     if(!templateFile||documents.length===0)return;
     setGenerating(true);showToast("Generating transmittal...","loading");
     try{
+      const{sortedDocs,sortedPdfs}=sortDocsAndPdfs(documents,pdfFiles);
       const form=new FormData();
       form.append("template",templateFile);
       form.append("fields",JSON.stringify({
@@ -332,9 +366,9 @@ export default function App(){
       }));
       form.append("checks",JSON.stringify(checks));
       form.append("contacts",JSON.stringify(contacts.filter(c=>c.name||c.email).map(({name,company,email,phone})=>({name,company,email,phone}))));
-      form.append("documents",JSON.stringify(documents.map(d=>({doc_no:d.docNo,desc:d.desc,rev:d.rev}))));
+      form.append("documents",JSON.stringify(sortedDocs.map(d=>({doc_no:d.docNo,desc:d.desc,rev:d.rev}))));
       form.append("output_format",outputFormat);
-      for(const pdf of pdfFiles){form.append("pdfs",pdf)}
+      for(const pdf of sortedPdfs){form.append("pdfs",pdf)}
 
       const res=await fetch(`${API}/api/render`,{method:"POST",body:form});
       if(!res.ok){const err=await res.json().catch(()=>({}));throw new Error(err.detail||`Server error ${res.status}`);}
