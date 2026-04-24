@@ -74,12 +74,8 @@ UninstallCaption "$(^Name) — Uninstaller"
 !define MUI_UNTEXT_CONFIRM_SUBTITLE              "Confirm that you want to uninstall."
 
 ; ── Shared taskkill helper ────────────────────────────────────────────────
-; Terminates the main app exe and the desktop-toolkit updater shim so NSIS
-; can overwrite or delete the binaries without hitting "file in use" errors.
-;
-; The updater shim will have already exited by the time NSIS runs it during
-; a force-update flow (it spawned the installer and is waiting on it), but
-; we kill it here defensively in case of a partial install scenario.
+; Terminates the main app exe so NSIS can overwrite or delete the binaries
+; without hitting "file in use" errors.
 ;
 ; NOTE: sidecar processes (PyInstaller backends, etc.) are killed
 ; automatically by the OS when the parent Tauri process exits, because
@@ -88,7 +84,10 @@ UninstallCaption "$(^Name) — Uninstaller"
 ; this file in your tool's repo and add the appropriate taskkill lines.
 !macro _KillAppProcesses
   nsExec::Exec 'taskkill /F /IM "${MAINBINARYNAME}.exe" /T'
-  nsExec::Exec 'taskkill /F /IM "desktop-toolkit-updater.exe" /T'
+  ; DO NOT kill desktop-toolkit-updater.exe during install.
+  ; The shim is the process that is actively running THIS installer
+  ; and waiting on it with child.wait(). Killing the shim mid-install
+  ; orphans the update flow and prevents the post-install relaunch.
   Sleep 2000
 !macroend
 
