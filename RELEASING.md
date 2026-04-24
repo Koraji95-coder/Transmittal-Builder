@@ -86,7 +86,7 @@ When bumping the framework version, update **all three** locations in
 `desktop-toolkit = { git = ..., tag = "..." }` line of the `[dependencies]`
 section — all three must stay in sync. Also bump the matching
 `@chamber-19/desktop-toolkit` version in `frontend/package.json` (and run
-`npm install` + `cargo update -p desktop-toolkit` to refresh the lockfiles in
+`npm install` + `cargo update -p desktop-toolkit --manifest-path frontend/src-tauri/Cargo.toml` to refresh the lockfiles in
 the same commit). The CI release workflow reads `shim-tag` from the metadata block
 automatically when building `desktop-toolkit-updater.exe` — **no workflow edit
 needed** when bumping the toolkit version.

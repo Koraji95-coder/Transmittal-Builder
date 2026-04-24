@@ -114,7 +114,7 @@ jobs:
           $cargoToml = Get-Content "frontend/src-tauri/Cargo.toml" -Raw
           $metadataBlock = [regex]::Match(
               $cargoToml,
-              '(?ms)^\[package\.metadata\.desktop-toolkit\]\s*\n(.*?)(?=^\[|\Z)'
+              '(?ms)^\[package\.metadata\.desktop-toolkit\]\s*\n(.*?)(?=\n\[|\Z)'
           ).Groups[1].Value
           if (-not $metadataBlock) {
               throw "Could not find [package.metadata.desktop-toolkit] block in frontend/src-tauri/Cargo.toml"
