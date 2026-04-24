@@ -132,6 +132,22 @@ function extractDocMeta(filename){
 /** Stable key for dedup / sync between PDF list and doc index rows. */
 const docKey=(docNo,desc)=>(docNo+"|"+desc).toLowerCase();
 
+// Natural-numeric collator and sort helper used both on drop and on submit
+// to guarantee drawing-number order regardless of browser file-delivery order.
+const _sortCollator=new Intl.Collator(undefined,{numeric:true,sensitivity:"base"});
+/** Returns sorted copies of docs and pdfs without mutating the inputs. */
+function sortDocsAndPdfs(docs,pdfs){
+  const sorted=[...docs].sort((a,b)=>
+    _sortCollator.compare(a.docNo||a.desc||"\uFFFF",b.docNo||b.desc||"\uFFFF"));
+  const order=new Map(sorted.map((d,i)=>[docKey(d.docNo,d.desc),i]));
+  const sortedPdfs=[...pdfs].sort((a,b)=>{
+    const ma=extractDocMeta(a.name),mb=extractDocMeta(b.name);
+    return (order.get(docKey(ma.doc_no,ma.desc))??1e9)
+          -(order.get(docKey(mb.doc_no,mb.desc))??1e9);
+  });
+  return{sortedDocs:sorted,sortedPdfs};
+}
+
 // ─── Status screen (shared layout for checking / failed) ─────
 const statusScreenStyle={
   display:"flex",
@@ -773,14 +789,11 @@ export default function App(){
         setIndexFile(f);
         parseIndex(f);
       }else if(ext==="pdf"){
-        setPdfFiles(prev=>{
-          if(prev.some(p=>p.name===f.name))return prev;
-          return[...prev,f];
-        });
         newPdfs.push(f);
       }
     }
-    // Auto-create document index rows for new PDFs
+    // Auto-create document index rows for new PDFs, then sort both lists so
+    // the UI immediately reflects natural drawing-number order.
     if(newPdfs.length>0){
       setDocuments(prev=>{
         const existing=new Set(prev.map(d=>docKey(d.docNo,d.desc)));
@@ -793,7 +806,17 @@ export default function App(){
             existing.add(key);
           }
         }
-        return[...prev,...toAdd];
+        const combined=[...prev,...toAdd];
+        return combined.sort((a,b)=>
+          _sortCollator.compare(a.docNo||a.desc||"\uFFFF",b.docNo||b.desc||"\uFFFF"));
+      });
+      setPdfFiles(prev=>{
+        const toAdd=newPdfs.filter(f=>!prev.some(p=>p.name===f.name));
+        const combined=[...prev,...toAdd];
+        return combined.sort((a,b)=>{
+          const ma=extractDocMeta(a.name),mb=extractDocMeta(b.name);
+          return _sortCollator.compare(ma.doc_no||ma.desc||"\uFFFF",mb.doc_no||mb.desc||"\uFFFF");
+        });
       });
     }
   },[parseIndex]);
@@ -826,6 +849,10 @@ export default function App(){
       from_email:draft.fromEmail,from_phone:draft.fromPhone,firm:draft.firm,
     };
     const contactsClean=contacts.filter(c=>c.name||c.email).map(({name,company,email,phone})=>({name,company,email,phone}));
+    // Sort docs and pdfs once here; both output paths below use the sorted copies
+    // as a submit-time guard so manual edits or "Add Row" entries after drop also
+    // land in the correct position.
+    const{sortedDocs,sortedPdfs}=sortDocsAndPdfs(documents,pdfFiles);
 
     // ── Folder output mode ─────────────────────────────────
     if(projectFolderPath){
@@ -836,9 +863,9 @@ export default function App(){
         form.append("fields",JSON.stringify(fieldsPayload));
         form.append("checks",JSON.stringify(checks));
         form.append("contacts",JSON.stringify(contactsClean));
-        form.append("documents",JSON.stringify(documents.map(d=>({doc_no:d.docNo,desc:d.desc,rev:d.rev}))));
+        form.append("documents",JSON.stringify(sortedDocs.map(d=>({doc_no:d.docNo,desc:d.desc,rev:d.rev}))));
         form.append("output_dir",projectFolderPath);
-        for(const pdf of pdfFiles){form.append("pdfs",pdf)}
+        for(const pdf of sortedPdfs){form.append("pdfs",pdf)}
 
         const res=await fetch(`${API}/api/render-to-folder`,{method:"POST",body:form});
         if(!res.ok){const err=await res.json().catch(()=>({}));throw new Error(err.detail||`Server error ${res.status}`);}
@@ -862,8 +889,8 @@ export default function App(){
       form.append("fields",JSON.stringify(fieldsPayload));
       form.append("checks",JSON.stringify(checks));
       form.append("contacts",JSON.stringify(contactsClean));
-      form.append("documents",JSON.stringify(documents.map(d=>({doc_no:d.docNo,desc:d.desc,rev:d.rev}))));
-      for(const pdf of pdfFiles){form.append("pdfs",pdf)}
+      form.append("documents",JSON.stringify(sortedDocs.map(d=>({doc_no:d.docNo,desc:d.desc,rev:d.rev}))));
+      for(const pdf of sortedPdfs){form.append("pdfs",pdf)}
 
       const res=await fetch(`${API}/api/render`,{method:"POST",body:form});
       if(!res.ok){const err=await res.json().catch(()=>({}));throw new Error(err.detail||`Server error ${res.status}`);}
