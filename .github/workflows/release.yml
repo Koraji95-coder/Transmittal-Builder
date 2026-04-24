@@ -114,14 +114,10 @@ jobs:
           $cargoToml = Get-Content "frontend/src-tauri/Cargo.toml" -Raw
           $metadataBlock = [regex]::Match(
               $cargoToml,
-              '(?ms)^\[package\.metadata\.desktop-toolkit\]\s*\n(.*?)^\['
+              '(?ms)^\[package\.metadata\.desktop-toolkit\]\s*\n(.*?)(?=^\[|\Z)'
           ).Groups[1].Value
           if (-not $metadataBlock) {
-              # Handle case where the metadata block is the last block in the file
-              $metadataBlock = [regex]::Match(
-                  $cargoToml,
-                  '(?ms)^\[package\.metadata\.desktop-toolkit\]\s*\n(.*)'
-              ).Groups[1].Value
+              throw "Could not find [package.metadata.desktop-toolkit] block in frontend/src-tauri/Cargo.toml"
           }
           $shimTagMatch = [regex]::Match($metadataBlock, '(?m)^\s*shim-tag\s*=\s*"([^"]+)"')
           if (-not $shimTagMatch.Success) {

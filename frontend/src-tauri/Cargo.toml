@@ -30,7 +30,8 @@ desktop-toolkit = { git = "https://github.com/chamber-19/desktop-toolkit", tag =
 # CI workflow (.github/workflows/release.yml) reads `shim-tag` from this block
 # when building the desktop-toolkit-updater.exe shim. Keep `library-tag` and
 # `shim-tag` in sync unless intentionally pinning to a shim hotfix tag.
-# When bumping, update BOTH this block AND the [dependencies] line above.
+# When bumping, update ALL THREE: `library-tag`, `shim-tag`, and the `tag` in
+# the [dependencies] desktop-toolkit line above.
 library-tag = "v2.2.7"
 shim-tag    = "v2.2.7"
 
