@@ -109,7 +109,7 @@ jobs:
       # the NSIS HOOK_POSTINSTALL can bundle it alongside the main exe.
       - name: Build desktop-toolkit-updater shim
         run: |
-          $desktopToolkitTag = "v2.2.6"
+          $desktopToolkitTag = "v2.2.7"
           git clone --depth 1 --branch $desktopToolkitTag `
             https://github.com/chamber-19/desktop-toolkit `
             "$env:RUNNER_TEMP\dtk"
