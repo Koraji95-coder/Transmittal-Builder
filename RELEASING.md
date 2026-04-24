@@ -78,6 +78,19 @@ Edit **all three** files:
 
 All three must match, e.g. `4.0.0`.
 
+### Bumping `@chamber-19/desktop-toolkit`
+
+When bumping the framework version, update **all three** locations in
+`frontend/src-tauri/Cargo.toml`: `library-tag` and `shim-tag` in the
+`[package.metadata.desktop-toolkit]` block, and the `tag` in the
+`desktop-toolkit = { git = ..., tag = "..." }` line of the `[dependencies]`
+section — all three must stay in sync. Also bump the matching
+`@chamber-19/desktop-toolkit` version in `frontend/package.json` (and run
+`npm install` + `cargo update -p desktop-toolkit --manifest-path frontend/src-tauri/Cargo.toml` to refresh the lockfiles in
+the same commit). The CI release workflow reads `shim-tag` from the metadata block
+automatically when building `desktop-toolkit-updater.exe` — **no workflow edit
+needed** when bumping the toolkit version.
+
 ### Step 2 — (Optional) Add release notes
 
 Create `RELEASE_NOTES.md` at the repository root with a brief description.
