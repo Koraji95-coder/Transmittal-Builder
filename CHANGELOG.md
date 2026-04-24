@@ -9,6 +9,19 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [6.2.6] — 2026-04-24
+
+### Fixed
+
+- Bumped `@chamber-19/desktop-toolkit` pin to v2.2.7, which fixes the broken
+  in-app update flow. Users on v6.2.4 or v6.2.5 who attempted to auto-update
+  received a brief installer flash and then no update occurred. Root causes
+  were upstream in desktop-toolkit (chamber-19/desktop-toolkit#31): NSIS
+  silent-install flag was incorrect (`/PASSIVE` instead of `/S`), and
+  `hooks.nsh` was killing the updater shim mid-install. This release is the
+  first transmittal-builder release that incorporates the fix; the in-app
+  update will work correctly from v6.2.6 forward.
+
 ## [6.2.5] — 2026-04-24
 
 ### Fixed
