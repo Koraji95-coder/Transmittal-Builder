@@ -9,6 +9,8 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [6.3.2] — 2026-04-25
+
 ### Changed
 
 - Release notes for the in-app updater are now extracted from the
