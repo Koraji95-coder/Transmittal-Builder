@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { SpeedInsights } from "@vercel/speed-insights/react"
+import { showOnReady } from "@chamber-19/desktop-toolkit/window/showOnReady"
 import App from './App.jsx'
 
 createRoot(document.getElementById('root')).render(
@@ -9,6 +10,11 @@ createRoot(document.getElementById('root')).render(
     <SpeedInsights />
   </StrictMode>,
 )
+
+// Reveal the main window after the React tree has committed its first frame.
+// Without this, the window stays invisible — the visible:false in tauri.conf.json
+// is intentional to prevent white flash on launch.
+showOnReady();
 
 // Reveal the body once React has mounted — pairs with the
 // `body { opacity: 0 }` rule in index.html to fade the main app in

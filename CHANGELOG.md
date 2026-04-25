@@ -9,6 +9,34 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [6.3.0] — 2026-04-25
+
+### Changed
+
+- Bumped `@chamber-19/desktop-toolkit` from v2.2.8 to v2.3.0. Brings three
+  user-visible improvements to the in-app update experience:
+  - **Release notes are now rendered as formatted markdown** (headers,
+    bullets, links) instead of showing raw markdown syntax like
+    `## What's new` or `### Fixed` as literal text.
+  - **Multi-phase update progress UI**: the update modal now shows
+    distinct phases (checking → downloading → verifying → installing →
+    launching) with real byte-level progress during download and
+    contextual status messages during each step. Errors during any phase
+    surface the failing phase name and the path to `updater.log`.
+  - **White-flash on launch eliminated**: the main window is now hidden
+    until React has rendered its first frame, then revealed via the new
+    `showOnReady()` helper. Background color set to `#1C1B19` so any
+    brief pre-JS exposure matches the design system instead of showing
+    white. See `frontend/src/main.jsx` for the call.
+
+### Migration
+
+- Internal: `frontend/src/main.jsx` now calls
+  `showOnReady()` from `@chamber-19/desktop-toolkit/window/showOnReady`
+  after `createRoot().render()`. This is a hard requirement of v2.3.0 —
+  without it the main window stays invisible after launch. Documented
+  in desktop-toolkit `docs/CONSUMING.md` § "Window flash prevention".
+
 ## [6.2.9] — 2026-04-25
 
 ### Changed
